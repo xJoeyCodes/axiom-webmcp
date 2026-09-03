@@ -1,92 +1,172 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useState } from "react";
 
+import {
+  InspectionProgress,
+  inspectionSteps,
+} from "@/components/publish/inspection-progress";
+import { PublishReview } from "@/components/publish/publish-review";
+import { PublishSuccess } from "@/components/publish/publish-success";
+import { WebsiteInspectForm } from "@/components/publish/website-inspect-form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { getAxiomClient } from "@/lib/api/client";
-import type { PublishResult } from "@/lib/types/axiom";
+import type { InspectionResult, PublishResult } from "@/lib/types/axiom";
+import { normalizeWebsiteUrl } from "@/lib/utils/url";
+
+type PublishStage =
+  "idle" | "inspecting" | "review" | "publishing" | "success" | "error";
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 
 export function PublishForm() {
-  const [pending, setPending] = useState(false);
-  const [result, setResult] = useState<PublishResult | null>(null);
+  const [stage, setStage] = useState<PublishStage>("idle");
+  const [url, setUrl] = useState("https://northstar.example");
+  const [normalizedUrl, setNormalizedUrl] = useState("");
+  const [activeStep, setActiveStep] = useState(0);
+  const [inspection, setInspection] = useState<InspectionResult | null>(null);
+  const [publishResult, setPublishResult] = useState<PublishResult | null>(
+    null,
+  );
+  const [errorMessage, setErrorMessage] = useState("");
 
-  async function submit(formData: FormData) {
-    setPending(true);
-    setResult(null);
+  function reset() {
+    setStage("idle");
+    setInspection(null);
+    setPublishResult(null);
+    setErrorMessage("");
+    setActiveStep(0);
+  }
 
-    const response = await getAxiomClient().publish({
-      url: String(formData.get("url") ?? ""),
-      contactEmail: String(formData.get("email") ?? "") || undefined,
-    });
+  async function inspect(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextUrl = normalizeWebsiteUrl(url);
+    if (!nextUrl) return;
 
-    setResult(response);
-    setPending(false);
+    setNormalizedUrl(nextUrl);
+    setInspection(null);
+    setErrorMessage("");
+    setActiveStep(0);
+    setStage("inspecting");
+
+    try {
+      const inspectionPromise = getAxiomClient().inspect(nextUrl);
+
+      for (let index = 0; index < inspectionSteps.length; index += 1) {
+        setActiveStep(index);
+        await wait(120);
+      }
+
+      const response = await inspectionPromise;
+      setActiveStep(inspectionSteps.length);
+      await wait(80);
+
+      if (
+        response.status !== "detected" ||
+        response.capabilities.length === 0
+      ) {
+        setErrorMessage(
+          response.warnings[0] ?? "No WebMCP capabilities were detected.",
+        );
+        setStage("error");
+        return;
+      }
+
+      setInspection(response);
+      setStage("review");
+    } catch {
+      setErrorMessage("We couldn't inspect this website. Try again.");
+      setStage("error");
+    }
+  }
+
+  async function publish() {
+    if (!inspection) return;
+
+    setStage("publishing");
+    try {
+      const response = await getAxiomClient().publish({
+        url: inspection.url,
+      });
+
+      if (response.status === "rejected") {
+        setErrorMessage(response.message);
+        setStage("error");
+        return;
+      }
+
+      setPublishResult(response);
+      setStage("success");
+    } catch {
+      setErrorMessage("We couldn't publish this website. Try again.");
+      setStage("error");
+    }
+  }
+
+  if (stage === "success" && publishResult) {
+    return (
+      <PublishSuccess
+        result={publishResult}
+        url={normalizedUrl}
+        onReset={reset}
+      />
+    );
+  }
+
+  if ((stage === "review" || stage === "publishing") && inspection) {
+    return (
+      <PublishReview
+        inspection={inspection}
+        publishing={stage === "publishing"}
+        onPublish={publish}
+        onReset={reset}
+      />
+    );
   }
 
   return (
-    <div className="max-w-2xl">
-      <form
-        action={submit}
-        className="space-y-6"
-        aria-describedby="publish-note"
-      >
-        <div>
-          <label
-            htmlFor="site-url"
-            className="text-secondary mb-2 block text-sm"
-          >
-            Website URL
-          </label>
-          <Input
-            id="site-url"
-            name="url"
-            type="url"
-            required
-            placeholder="https://example.com"
-            autoComplete="url"
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="contact-email"
-            className="text-secondary mb-2 block text-sm"
-          >
-            Contact email <span className="text-muted">(optional)</span>
-          </label>
-          <Input
-            id="contact-email"
-            name="email"
-            type="email"
-            placeholder="developer@example.com"
-            autoComplete="email"
-          />
-        </div>
-        <p id="publish-note" className="text-muted text-xs leading-5">
-          This frontend preview uses a local mock inspector. It does not submit
-          data to an external service.
-        </p>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Inspecting…" : "Inspect website"}
-        </Button>
-      </form>
+    <div>
+      <WebsiteInspectForm
+        value={url}
+        onChange={(value) => {
+          setUrl(value);
+          if (stage === "error") setStage("idle");
+        }}
+        onSubmit={inspect}
+        disabled={stage === "inspecting"}
+      />
 
-      {result ? (
-        <div
-          className="border-border mt-8 border-t pt-6"
-          role="status"
-          aria-live="polite"
+      {stage === "inspecting" ? (
+        <InspectionProgress url={normalizedUrl} activeStep={activeStep} />
+      ) : null}
+
+      {stage === "error" ? (
+        <section
+          className="border-border mt-10 max-w-4xl border-t pt-8"
+          aria-labelledby="inspection-error-title"
         >
           <p className="text-muted font-mono text-[10px] tracking-[0.12em] uppercase">
-            {result.status} / {result.verificationStatus}
+            Inspection stopped
           </p>
-          <p className="text-secondary mt-3 text-sm">{result.message}</p>
-          {result.submissionId ? (
-            <p className="text-muted mt-2 font-mono text-[11px]">
-              {result.submissionId}
-            </p>
-          ) : null}
-        </div>
+          <h2
+            id="inspection-error-title"
+            className="text-foreground mt-4 text-2xl font-normal tracking-[-0.03em]"
+          >
+            No publishable WebMCP surface.
+          </h2>
+          <p
+            className="text-secondary mt-3 max-w-lg text-sm leading-6"
+            role="alert"
+          >
+            {errorMessage}
+          </p>
+          <Button variant="secondary" onClick={reset} className="mt-6">
+            Try again
+          </Button>
+        </section>
       ) : null}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -10,33 +10,50 @@ interface CopyButtonProps {
   label?: string;
 }
 
+type CopyState = "idle" | "copied" | "error";
+
 export function CopyButton({ value, label = "Copy" }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<CopyState>("idle");
 
   useEffect(() => {
-    if (!copied) return;
-    const timeout = window.setTimeout(() => setCopied(false), 1800);
+    if (state === "idle") return;
+    const timeout = window.setTimeout(() => setState("idle"), 1800);
     return () => window.clearTimeout(timeout);
-  }, [copied]);
+  }, [state]);
 
   async function copy() {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(value);
+      setState("copied");
+    } catch {
+      setState("error");
+    }
   }
+
+  const statusLabel =
+    state === "copied" ? "Copied" : state === "error" ? "Copy failed" : label;
 
   return (
     <Button
       size="sm"
       variant="quiet"
       onClick={copy}
-      aria-label={copied ? "Copied to clipboard" : `${label} to clipboard`}
+      aria-label={
+        state === "copied"
+          ? "Copied to clipboard"
+          : state === "error"
+            ? "Copy failed. Try again"
+            : `${label} to clipboard`
+      }
     >
-      {copied ? (
+      {state === "copied" ? (
         <Check aria-hidden size={14} />
+      ) : state === "error" ? (
+        <TriangleAlert aria-hidden size={14} />
       ) : (
         <Copy aria-hidden size={14} />
       )}
-      {copied ? "Copied" : label}
+      <span aria-live="polite">{statusLabel}</span>
     </Button>
   );
 }

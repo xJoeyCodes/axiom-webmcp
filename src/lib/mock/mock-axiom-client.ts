@@ -1,4 +1,5 @@
 import type { AxiomClient } from "@/lib/api/axiom-client";
+import { mockInspectionProvider } from "@/lib/mock/inspection-provider";
 import { mockProviders } from "@/lib/mock/providers";
 import type {
   Capability,
@@ -9,6 +10,8 @@ import type {
   PublishInput,
   PublishResult,
 } from "@/lib/types/axiom";
+
+const MOCK_INSPECTED_AT = "2026-09-03T12:00:00.000Z";
 
 const conceptAliases: Record<string, string> = {
   accommodation: "accommodation",
@@ -177,6 +180,26 @@ function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+function invalidInspection(url: string, warning: string): InspectionResult {
+  return {
+    url,
+    status: "invalid",
+    provider: null,
+    capabilities: [],
+    inspectedAt: MOCK_INSPECTED_AT,
+    warnings: [warning],
+  };
+}
+
+function submissionIdFor(url: string): string {
+  let hash = 2_166_136_261;
+  for (const character of url) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return `sub_mock_${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
 export class MockAxiomClient implements AxiomClient {
   constructor(private readonly providers: Provider[] = mockProviders) {}
 
@@ -187,7 +210,6 @@ export class MockAxiomClient implements AxiomClient {
       return [];
     }
 
-    // Keeps the mock's loading state observable without simulating network lag.
     await wait(120);
 
     const requiredSpecificConcepts = new Set(
@@ -266,68 +288,86 @@ export class MockAxiomClient implements AxiomClient {
   }
 
   async getProvider(slug: string): Promise<Provider | null> {
-    const provider = this.providers.find((entry) => entry.slug === slug);
+    const provider =
+      this.providers.find((entry) => entry.slug === slug) ??
+      (mockInspectionProvider.slug === slug ? mockInspectionProvider : null);
     return provider ? clone(provider) : null;
   }
 
   async inspect(url: string): Promise<InspectionResult> {
-    const inspectedAt = new Date().toISOString();
+    let parsedUrl: URL;
 
     try {
-      const parsedUrl = new URL(url);
-      const provider = this.providers.find(
-        (entry) =>
-          parsedUrl.hostname === entry.domain ||
-          parsedUrl.hostname.endsWith(`.${entry.domain}`),
-      );
-
-      return provider
-        ? {
-            url: parsedUrl.toString(),
-            status: "detected",
-            provider: clone(provider),
-            capabilities: clone(provider.capabilities),
-            inspectedAt,
-            warnings: [],
-          }
-        : {
-            url: parsedUrl.toString(),
-            status: "not_found",
-            provider: null,
-            capabilities: [],
-            inspectedAt,
-            warnings: ["No WebMCP manifest was found by the mock inspector."],
-          };
+      parsedUrl = new URL(url);
     } catch {
-      return {
-        url,
-        status: "invalid",
-        provider: null,
-        capabilities: [],
-        inspectedAt,
-        warnings: ["Enter an absolute HTTP or HTTPS URL."],
-      };
+      return invalidInspection(url, "Enter an absolute HTTP or HTTPS URL.");
     }
-  }
 
-  async publish(input: PublishInput): Promise<PublishResult> {
-    const inspection = await this.inspect(input.url);
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return invalidInspection(
+        url,
+        "Only HTTP and HTTPS websites can be inspected.",
+      );
+    }
 
-    if (inspection.status === "invalid") {
+    await wait(180);
+
+    const provider = this.providers.find(
+      (entry) =>
+        parsedUrl.hostname === entry.domain ||
+        parsedUrl.hostname.endsWith(`.${entry.domain}`),
+    );
+    const isNorthstarDemo = [
+      "example.com",
+      "www.example.com",
+      mockInspectionProvider.domain,
+    ].includes(parsedUrl.hostname);
+
+    if (provider || isNorthstarDemo) {
+      const detectedProvider = clone(provider ?? mockInspectionProvider);
+      if (isNorthstarDemo) detectedProvider.domain = parsedUrl.hostname;
+
       return {
-        submissionId: "",
-        status: "rejected",
-        verificationStatus: "unverified",
-        message: inspection.warnings[0],
+        url: parsedUrl.toString(),
+        status: "detected",
+        provider: detectedProvider,
+        capabilities: clone(detectedProvider.capabilities),
+        inspectedAt: MOCK_INSPECTED_AT,
+        warnings: [],
       };
     }
 
     return {
-      submissionId: `sub_${crypto.randomUUID()}`,
-      status: "queued",
-      verificationStatus: "pending",
-      message: "Website queued for WebMCP verification and indexing.",
-      provider: inspection.provider ?? undefined,
+      url: parsedUrl.toString(),
+      status: "not_found",
+      provider: null,
+      capabilities: [],
+      inspectedAt: MOCK_INSPECTED_AT,
+      warnings: ["No WebMCP capabilities were detected at this website."],
+    };
+  }
+
+  async publish(input: PublishInput): Promise<PublishResult> {
+    const inspection = await this.inspect(input.url);
+    await wait(140);
+
+    if (inspection.status !== "detected" || !inspection.provider) {
+      return {
+        submissionId: submissionIdFor(input.url),
+        status: "rejected",
+        verificationStatus: "unverified",
+        message:
+          inspection.warnings[0] ??
+          "The website could not be added to the mock registry.",
+      };
+    }
+
+    return {
+      submissionId: submissionIdFor(inspection.url),
+      status: "accepted",
+      verificationStatus: "verified",
+      message: "Website accepted by the mock Axiom registry.",
+      provider: clone(inspection.provider),
     };
   }
 }

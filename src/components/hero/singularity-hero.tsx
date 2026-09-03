@@ -1,6 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useSyncExternalStore } from "react";
+
+const sceneQuery =
+  "(min-width: 640px) and (prefers-reduced-motion: no-preference)";
 
 const SingularityScene = dynamic(
   () =>
@@ -10,7 +14,27 @@ const SingularityScene = dynamic(
   { ssr: false },
 );
 
+function subscribeToScenePreference(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia(sceneQuery);
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
+function getScenePreference() {
+  return window.matchMedia(sceneQuery).matches;
+}
+
+function getServerScenePreference() {
+  return false;
+}
+
 export function SingularityHero() {
+  const renderWebGl = useSyncExternalStore(
+    subscribeToScenePreference,
+    getScenePreference,
+    getServerScenePreference,
+  );
+
   return (
     <div
       aria-hidden="true"
@@ -24,9 +48,11 @@ export function SingularityHero() {
         <div className="absolute top-1/2 right-[8%] left-[8%] h-px bg-linear-to-r from-transparent via-white/[0.09] to-transparent" />
       </div>
 
-      <div className="absolute inset-0 opacity-65 sm:opacity-80">
-        <SingularityScene />
-      </div>
+      {renderWebGl ? (
+        <div className="absolute inset-0 opacity-80">
+          <SingularityScene />
+        </div>
+      ) : null}
 
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(9,10,12,0.12)_38%,#090a0c_76%)]" />
       <div className="to-background absolute inset-x-0 bottom-0 h-52 bg-linear-to-b from-transparent" />

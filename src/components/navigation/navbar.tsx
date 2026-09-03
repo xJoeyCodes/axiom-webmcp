@@ -28,6 +28,11 @@ function getServerScrollSnapshot() {
   return false;
 }
 
+function isActivePath(pathname: string, href: string) {
+  if (href === "/discover" && pathname.startsWith("/site/")) return true;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const scrolled = useSyncExternalStore(
@@ -60,26 +65,31 @@ export function Navbar() {
           aria-label="Primary navigation"
           className="hidden items-center gap-8 sm:flex"
         >
-          {navigation.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={pathname === item.href ? "page" : undefined}
-              className={cn(
-                "text-secondary hover:text-foreground text-[13px] transition-colors duration-200",
-                pathname === item.href && "text-foreground",
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navigation.map((item) => {
+            const active = isActivePath(pathname, item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "text-secondary hover:text-foreground text-[13px] transition-colors duration-200",
+                  active && "text-foreground",
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="hidden sm:block">
           <a
             href={siteConfig.githubUrl}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
+            aria-label="Open Axiom on GitHub in a new tab"
             className="text-secondary hover:text-foreground font-mono text-[11px] transition-colors duration-200"
           >
             GitHub <span aria-hidden>↗</span>
