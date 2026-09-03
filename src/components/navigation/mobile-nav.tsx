@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils/cn";
 
 interface MobileNavProps {
   links: ReadonlyArray<{ href: string; label: string }>;
+  githubUrl: string;
 }
 
-export function MobileNav({ links }: MobileNavProps) {
+export function MobileNav({ links, githubUrl }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -30,7 +31,7 @@ export function MobileNav({ links }: MobileNavProps) {
       {open ? (
         <div
           id="mobile-navigation"
-          className="border-border bg-background absolute inset-x-0 top-full border-b px-5 py-4"
+          className="border-border bg-background/96 absolute inset-x-0 top-full border-b px-5 py-4 backdrop-blur-md"
         >
           <nav aria-label="Mobile navigation" className="grid gap-1">
             {links.map((link) => (
@@ -48,7 +49,7 @@ export function MobileNav({ links }: MobileNavProps) {
               </Link>
             ))}
             <a
-              href="https://github.com"
+              href={githubUrl}
               target="_blank"
               rel="noreferrer"
               className="text-secondary hover:bg-surface-hover hover:text-foreground rounded-[5px] px-3 py-3 text-sm transition-colors"

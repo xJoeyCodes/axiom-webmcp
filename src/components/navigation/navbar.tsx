@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { MobileNav } from "@/components/navigation/mobile-nav";
+import { siteConfig } from "@/lib/config/site";
+import { cn } from "@/lib/utils/cn";
 
 const navigation = [
   { href: "/discover", label: "Discover" },
@@ -9,13 +15,43 @@ const navigation = [
   { href: "/docs", label: "Docs" },
 ] as const;
 
+function subscribeToScroll(onStoreChange: () => void) {
+  window.addEventListener("scroll", onStoreChange, { passive: true });
+  return () => window.removeEventListener("scroll", onStoreChange);
+}
+
+function getScrollSnapshot() {
+  return window.scrollY > 16;
+}
+
+function getServerScrollSnapshot() {
+  return false;
+}
+
 export function Navbar() {
+  const pathname = usePathname();
+  const scrolled = useSyncExternalStore(
+    subscribeToScroll,
+    getScrollSnapshot,
+    getServerScrollSnapshot,
+  );
+  const isLandingPage = pathname === "/";
+
   return (
-    <header className="border-border bg-background/95 sticky top-0 z-50 border-b backdrop-blur-sm">
+    <header
+      className={cn(
+        "top-0 z-50 w-full border-b transition-[background-color,border-color,backdrop-filter] duration-200",
+        isLandingPage ? "fixed" : "sticky",
+        isLandingPage && !scrolled
+          ? "border-transparent bg-transparent"
+          : "border-border bg-background/88 backdrop-blur-md",
+      )}
+    >
       <PageContainer className="relative flex h-16 items-center justify-between">
         <Link
           href="/"
-          className="text-foreground font-mono text-[13px] font-medium tracking-[0.18em]"
+          aria-label="Axiom home"
+          className="text-foreground font-mono text-[12px] font-medium tracking-[0.2em]"
         >
           AXIOM
         </Link>
@@ -28,7 +64,11 @@ export function Navbar() {
             <Link
               key={item.href}
               href={item.href}
-              className="text-secondary hover:text-foreground text-[13px] transition-colors duration-200"
+              aria-current={pathname === item.href ? "page" : undefined}
+              className={cn(
+                "text-secondary hover:text-foreground text-[13px] transition-colors duration-200",
+                pathname === item.href && "text-foreground",
+              )}
             >
               {item.label}
             </Link>
@@ -37,15 +77,15 @@ export function Navbar() {
 
         <div className="hidden sm:block">
           <a
-            href="https://github.com"
+            href={siteConfig.githubUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-secondary hover:text-foreground font-mono text-xs transition-colors duration-200"
+            className="text-secondary hover:text-foreground font-mono text-[11px] transition-colors duration-200"
           >
             GitHub <span aria-hidden>↗</span>
           </a>
         </div>
-        <MobileNav links={navigation} />
+        <MobileNav links={navigation} githubUrl={siteConfig.githubUrl} />
       </PageContainer>
     </header>
   );

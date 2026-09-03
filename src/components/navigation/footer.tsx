@@ -1,26 +1,45 @@
 import Link from "next/link";
 
 import { PageContainer } from "@/components/layout/page-container";
+import { siteConfig } from "@/lib/config/site";
 
 export function Footer() {
   return (
-    <footer className="border-border mt-auto border-t py-8">
-      <PageContainer className="text-muted flex flex-col gap-4 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <p className="font-mono tracking-[0.12em]">AXIOM / WEBMCP DISCOVERY</p>
-        <div className="flex gap-5">
-          <Link
-            className="hover:text-foreground transition-colors"
-            href="/publish"
+    <footer className="border-border mt-auto border-t py-9">
+      <PageContainer className="flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-secondary font-mono text-[11px] tracking-[0.18em]">
+            AXIOM
+          </p>
+          <p className="text-muted mt-2 text-xs">
+            Open-source discovery for the agentic web.
+          </p>
+        </div>
+        <nav
+          aria-label="Footer navigation"
+          className="text-muted flex flex-wrap gap-5 text-xs"
+        >
+          <a
+            className="hover:text-foreground transition-colors duration-200"
+            href={siteConfig.githubUrl}
+            target="_blank"
+            rel="noreferrer"
           >
-            Publish
-          </Link>
+            GitHub
+          </a>
           <Link
-            className="hover:text-foreground transition-colors"
+            className="hover:text-foreground transition-colors duration-200"
             href="/docs"
           >
-            Documentation
+            Docs
           </Link>
-        </div>
+          <Link
+            className="hover:text-foreground transition-colors duration-200"
+            href="/developers"
+          >
+            Developers
+          </Link>
+        </nav>
       </PageContainer>
     </footer>
   );

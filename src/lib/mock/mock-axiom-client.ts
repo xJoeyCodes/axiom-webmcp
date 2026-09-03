@@ -10,125 +10,259 @@ import type {
   PublishResult,
 } from "@/lib/types/axiom";
 
-const relatedTerms: Record<string, string[]> = {
-  buy: ["reserve", "book", "transaction"],
-  dinner: ["dining", "restaurant", "table", "food"],
-  dine: ["dining", "restaurant", "table", "food"],
-  eat: ["dining", "restaurant", "food"],
-  fare: ["flight", "airfare", "travel"],
-  fly: ["flight", "airfare", "travel"],
-  plane: ["flight", "airfare", "travel"],
-  restaurant: ["dining", "dinner", "table", "food"],
-  show: ["event", "concert", "ticket"],
-  tickets: ["ticket", "event", "concert"],
-  ticket: ["tickets", "event", "concert"],
+const conceptAliases: Record<string, string> = {
+  accommodation: "accommodation",
+  airfare: "flight",
+  available: "availability",
+  booking: "reserve",
+  book: "reserve",
+  check: "availability",
+  concert: "event",
+  dining: "restaurant",
+  dinner: "restaurant",
+  discover: "search",
+  eat: "restaurant",
+  fare: "flight",
+  find: "search",
+  fly: "flight",
+  food: "restaurant",
+  locate: "search",
+  plane: "flight",
+  purchase: "buy",
+  reservation: "reserve",
+  show: "event",
+  table: "restaurant",
+  ticket: "event",
+  travel: "flight",
+  trip: "flight",
 };
 
-function tokens(value: string): string[] {
+const ignoredTerms = new Set([
+  "and",
+  "for",
+  "from",
+  "into",
+  "need",
+  "please",
+  "that",
+  "the",
+  "this",
+  "with",
+]);
+
+const genericConcepts = new Set([
+  "availability",
+  "buy",
+  "compare",
+  "reserve",
+  "search",
+]);
+
+interface QueryTerm {
+  original: string;
+  concept: string;
+}
+
+interface RankedCapability {
+  match: CapabilityMatch;
+  matchedConcepts: Set<string>;
+  rawScore: number;
+}
+
+function singularize(token: string): string {
+  if (token.endsWith("ies") && token.length > 4) {
+    return `${token.slice(0, -3)}y`;
+  }
+
+  if (token.endsWith("s") && token.length > 4) {
+    return token.slice(0, -1);
+  }
+
+  return token;
+}
+
+function lexicalTokens(value: string): string[] {
   return value
     .toLowerCase()
     .replaceAll("_", " ")
     .split(/[^a-z0-9]+/)
-    .filter((token) => token.length > 1)
-    .map((token) => {
-      if (token.endsWith("ies")) return `${token.slice(0, -3)}y`;
-      if (token.endsWith("s") && token.length > 4) return token.slice(0, -1);
-      return token;
-    });
+    .map(singularize)
+    .filter((token) => token.length > 1 && !ignoredTerms.has(token));
 }
 
-function capabilityDocument(
-  provider: Provider,
-  capability: Capability,
-): Set<string> {
-  return new Set(
-    tokens(
-      [
-        provider.name,
-        provider.domain,
-        provider.description,
-        capability.name,
-        capability.description,
-        capability.metadata.category,
-        ...capability.metadata.tags,
-      ].join(" "),
-    ),
-  );
+function conceptFor(token: string): string {
+  return conceptAliases[token] ?? token;
+}
+
+function documentConcepts(value: string): Set<string> {
+  return new Set(lexicalTokens(value).map(conceptFor));
+}
+
+function queryTerms(value: string): QueryTerm[] {
+  const seenConcepts = new Set<string>();
+
+  return lexicalTokens(value).flatMap((original) => {
+    const concept = conceptFor(original);
+
+    if (seenConcepts.has(concept)) {
+      return [];
+    }
+
+    seenConcepts.add(concept);
+    return [{ original, concept }];
+  });
 }
 
 function rankCapability(
-  provider: Provider,
   capability: Capability,
-  queryTokens: string[],
-): CapabilityMatch {
-  const document = capabilityDocument(provider, capability);
-  let score = 0;
+  terms: QueryTerm[],
+): RankedCapability {
+  const name = documentConcepts(capability.name);
+  const description = documentConcepts(capability.description);
+  const category = documentConcepts(capability.metadata.category);
+  const tags = documentConcepts(capability.metadata.tags.join(" "));
+  const matchedConcepts = new Set<string>();
   const matchedTerms = new Set<string>();
+  let rawScore = 0;
 
-  for (const queryToken of queryTokens) {
-    if (document.has(queryToken)) {
-      score += 6;
-      matchedTerms.add(queryToken);
-    }
+  for (const term of terms) {
+    let termScore = 0;
 
-    for (const related of relatedTerms[queryToken] ?? []) {
-      const normalizedRelated = tokens(related)[0] ?? related;
-      if (document.has(normalizedRelated)) {
-        score += 2;
-        matchedTerms.add(queryToken);
-        break;
-      }
+    if (name.has(term.concept)) termScore += 15;
+    if (tags.has(term.concept)) termScore += 11;
+    if (category.has(term.concept)) termScore += 8;
+    if (description.has(term.concept)) termScore += 6;
+
+    if (termScore > 0) {
+      rawScore += termScore;
+      matchedConcepts.add(term.concept);
+      matchedTerms.add(term.original);
     }
   }
 
-  if (tokens(capability.name).every((token) => document.has(token))) {
-    score += queryTokens.some((token) => capability.name.includes(token))
-      ? 2
-      : 0;
-  }
+  const coverage = terms.length === 0 ? 0 : matchedConcepts.size / terms.length;
+  const score = Math.min(
+    99,
+    Math.round(55 + coverage * 32 + Math.min(12, rawScore / 4)),
+  );
 
-  return { capability, score, matchedTerms: [...matchedTerms] };
+  return {
+    match: {
+      capability,
+      score,
+      matchedTerms: [...matchedTerms],
+    },
+    matchedConcepts,
+    rawScore,
+  };
+}
+
+function providerConcepts(provider: Provider): {
+  description: Set<string>;
+  identity: Set<string>;
+  industry: Set<string>;
+} {
+  return {
+    description: documentConcepts(provider.description),
+    identity: documentConcepts(`${provider.name} ${provider.domain}`),
+    industry: documentConcepts(provider.metadata.industry),
+  };
 }
 
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 export class MockAxiomClient implements AxiomClient {
   constructor(private readonly providers: Provider[] = mockProviders) {}
 
   async discover(query: string): Promise<DiscoveryResult[]> {
-    const queryTokens = tokens(query);
+    const terms = queryTerms(query.trim());
 
-    if (queryTokens.length === 0) {
-      return this.providers.map((provider) => ({
-        provider: clone(provider),
-        score: 0,
-        matches: provider.capabilities.map((capability) => ({
-          capability: clone(capability),
-          score: 0,
-          matchedTerms: [],
-        })),
-      }));
+    if (terms.length === 0) {
+      return [];
     }
+
+    // Keeps the mock's loading state observable without simulating network lag.
+    await wait(120);
+
+    const requiredSpecificConcepts = new Set(
+      terms
+        .map((term) => term.concept)
+        .filter((concept) => !genericConcepts.has(concept)),
+    );
 
     return this.providers
       .map((provider) => {
-        const matches = provider.capabilities
-          .map((capability) =>
-            rankCapability(provider, capability, queryTokens),
-          )
-          .filter((match) => match.score > 0)
-          .sort((a, b) => b.score - a.score);
-        const score = matches.reduce(
-          (total, match, index) => total + match.score / (index + 1),
-          0,
+        const providerDocument = providerConcepts(provider);
+        const matchedConcepts = new Set<string>();
+        let providerRawScore = 0;
+
+        for (const term of terms) {
+          let termScore = 0;
+
+          if (providerDocument.identity.has(term.concept)) termScore += 10;
+          if (providerDocument.industry.has(term.concept)) termScore += 8;
+          if (providerDocument.description.has(term.concept)) termScore += 5;
+
+          if (termScore > 0) {
+            providerRawScore += termScore;
+            matchedConcepts.add(term.concept);
+          }
+        }
+
+        const rankedCapabilities = provider.capabilities
+          .map((capability) => rankCapability(capability, terms))
+          .filter((ranked) => ranked.rawScore > 0)
+          .sort(
+            (left, right) =>
+              right.rawScore - left.rawScore ||
+              left.match.capability.name.localeCompare(
+                right.match.capability.name,
+              ),
+          );
+
+        for (const ranked of rankedCapabilities) {
+          providerRawScore += ranked.rawScore;
+          for (const concept of ranked.matchedConcepts) {
+            matchedConcepts.add(concept);
+          }
+        }
+
+        const matchesSpecificConcept = [...requiredSpecificConcepts].some(
+          (concept) => matchedConcepts.has(concept),
+        );
+        const isRelevant =
+          providerRawScore > 0 &&
+          (requiredSpecificConcepts.size === 0 || matchesSpecificConcept);
+        const coverage = matchedConcepts.size / terms.length;
+        const score = Math.min(
+          99,
+          Math.round(62 + coverage * 25 + Math.min(12, providerRawScore / 5)),
         );
 
-        return { provider: clone(provider), score, matches: clone(matches) };
+        return {
+          isRelevant,
+          result: {
+            provider: clone(provider),
+            score,
+            matches: clone(rankedCapabilities.map((ranked) => ranked.match)),
+          } satisfies DiscoveryResult,
+          rawScore: providerRawScore,
+        };
       })
-      .filter((result) => result.score > 0)
-      .sort((a, b) => b.score - a.score);
+      .filter((entry) => entry.isRelevant)
+      .sort(
+        (left, right) =>
+          right.result.score - left.result.score ||
+          right.rawScore - left.rawScore ||
+          left.result.provider.name.localeCompare(right.result.provider.name),
+      )
+      .map((entry) => entry.result);
   }
 
   async getProvider(slug: string): Promise<Provider | null> {
