@@ -2,12 +2,27 @@
   "name": "axiom",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
+    "dev:web": "next dev",
+    "dev:api": "npm run dev --workspace @axiom/api",
     "build": "next build",
+    "build:web": "next build",
+    "build:packages": "npm run build --workspace @axiom/core && npm run build --workspace @axiom/contracts && npm run build --workspace @axiom/db",
+    "build:api": "npm run build:packages && npm run build --workspace @axiom/api",
+    "build:all": "npm run build:web && npm run build:api",
     "start": "next start",
+    "start:api": "npm run start --workspace @axiom/api",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && npm run typecheck --workspace @axiom/core && npm run typecheck --workspace @axiom/contracts && npm run typecheck --workspace @axiom/db && npm run typecheck --workspace @axiom/api",
+    "test": "npm run build:packages && vitest run",
+    "db:generate": "npm run db:generate --workspace @axiom/db",
+    "db:migrate": "npm run db:migrate --workspace @axiom/db",
+    "db:studio": "npm run db:studio --workspace @axiom/db",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -31,6 +46,7 @@
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
   }
 }

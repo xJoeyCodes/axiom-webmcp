@@ -2,3 +2,6 @@
 node_modules
 package-lock.json
 src/app/icon.svg
+**/dist
+coverage
+packages/db/drizzle
