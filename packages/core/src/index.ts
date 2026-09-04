@@ -6,5 +6,6 @@ export * from "./domain/provider.js";
 export * from "./errors/application-error.js";
 export * from "./repositories/capability-repository.js";
 export * from "./repositories/provider-repository.js";
+export * from "./repositories/registry-unit-of-work.js";
 export * from "./utils/content-hash.js";
 export * from "./utils/normalization.js";

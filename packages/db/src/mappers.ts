@@ -1,4 +1,4 @@
-import type { Capability, Provider } from "@axiom/core";
+import type { Capability, JsonValue, Provider } from "@axiom/core";
 
 import type {
   CapabilityRow,
@@ -57,7 +57,10 @@ export function mapCapabilityRow(row: CapabilityRow): Capability {
   };
 }
 
-export function toCapabilityRow(capability: Capability): NewCapabilityRow {
+export function toCapabilityRow(
+  capability: Capability,
+  rawContract?: JsonValue,
+): NewCapabilityRow {
   return {
     id: capability.id,
     providerId: capability.providerId,
@@ -70,6 +73,7 @@ export function toCapabilityRow(capability: Capability): NewCapabilityRow {
     source: capability.source,
     status: capability.status,
     contentHash: capability.contentHash,
+    ...(rawContract === undefined ? {} : { rawContract }),
     createdAt: capability.createdAt,
     updatedAt: capability.updatedAt,
   };

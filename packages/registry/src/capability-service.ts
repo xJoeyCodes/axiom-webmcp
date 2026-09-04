@@ -9,6 +9,7 @@ import {
   type CapabilityRepository,
   type CapabilitySchema,
   type CapabilitySource,
+  type JsonValue,
   type ProviderRepository,
 } from "@axiom/core";
 
@@ -22,6 +23,8 @@ export interface WriteCapabilityInput {
   readonly annotations?: CapabilityAnnotations;
   readonly specVersion?: string | null;
   readonly source: CapabilitySource;
+  /** Trusted source contract retained for migrations/debugging; never returned by default. */
+  readonly rawContract?: JsonValue;
 }
 
 export type CapabilityUpsertOutcome = "created" | "updated" | "unchanged";
@@ -66,6 +69,9 @@ export class CapabilityService {
     const timestamp = this.now();
     return this.capabilities.create(
       this.createCapability(provider.id, normalized, timestamp),
+      input.rawContract === undefined
+        ? undefined
+        : { rawContract: input.rawContract },
     );
   }
 
@@ -114,10 +120,15 @@ export class CapabilityService {
       provider.id,
       pathName,
     );
+    const persistenceOptions =
+      input.rawContract === undefined
+        ? undefined
+        : { rawContract: input.rawContract };
     if (!existing) {
       const timestamp = this.now();
       const capability = await this.capabilities.create(
         this.createCapability(provider.id, normalized, timestamp),
+        persistenceOptions,
       );
       return { capability, outcome: "created" };
     }
@@ -132,18 +143,21 @@ export class CapabilityService {
       return { capability: existing, outcome: "unchanged" };
     }
 
-    const capability = await this.capabilities.upsert({
-      ...existing,
-      description: normalized.description,
-      inputSchema: normalized.inputSchema,
-      outputSchema: normalized.outputSchema,
-      annotations: normalized.annotations,
-      specVersion: normalized.specVersion,
-      source: normalized.source,
-      status: "active",
-      contentHash,
-      updatedAt: this.now(),
-    });
+    const capability = await this.capabilities.upsert(
+      {
+        ...existing,
+        description: normalized.description,
+        inputSchema: normalized.inputSchema,
+        outputSchema: normalized.outputSchema,
+        annotations: normalized.annotations,
+        specVersion: normalized.specVersion,
+        source: normalized.source,
+        status: "active",
+        contentHash,
+        updatedAt: this.now(),
+      },
+      persistenceOptions,
+    );
     return { capability, outcome: "updated" };
   }
 

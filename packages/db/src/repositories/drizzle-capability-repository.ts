@@ -1,6 +1,7 @@
 import {
   ApplicationError,
   type Capability,
+  type CapabilityPersistenceOptions,
   type CapabilityRepository,
   type CapabilityStatus,
 } from "@axiom/core";
@@ -58,11 +59,14 @@ export class DrizzleCapabilityRepository implements CapabilityRepository {
     return row ? mapCapabilityRow(row) : null;
   }
 
-  async create(capability: Capability): Promise<Capability> {
+  async create(
+    capability: Capability,
+    options?: CapabilityPersistenceOptions,
+  ): Promise<Capability> {
     try {
       const [row] = await this.db
         .insert(capabilities)
-        .values(toCapabilityRow(capability))
+        .values(toCapabilityRow(capability, options?.rawContract))
         .returning();
       if (!row) {
         throw new ApplicationError(
@@ -83,10 +87,17 @@ export class DrizzleCapabilityRepository implements CapabilityRepository {
     }
   }
 
-  async upsert(capability: Capability): Promise<Capability> {
+  async upsert(
+    capability: Capability,
+    options?: CapabilityPersistenceOptions,
+  ): Promise<Capability> {
+    const rawContractUpdate =
+      options?.rawContract === undefined
+        ? {}
+        : { rawContract: options.rawContract };
     const [row] = await this.db
       .insert(capabilities)
-      .values(toCapabilityRow(capability))
+      .values(toCapabilityRow(capability, options?.rawContract))
       .onConflictDoUpdate({
         target: [capabilities.providerId, capabilities.name],
         set: {
@@ -98,6 +109,7 @@ export class DrizzleCapabilityRepository implements CapabilityRepository {
           source: capability.source,
           status: capability.status,
           contentHash: capability.contentHash,
+          ...rawContractUpdate,
           updatedAt: capability.updatedAt,
         },
       })

@@ -24,7 +24,7 @@ export async function createApp(
   options: CreateAppOptions,
 ): Promise<FastifyInstance> {
   const app = Fastify({
-    bodyLimit: 1_048_576,
+    bodyLimit: 2_097_152,
     genReqId: () => randomUUID(),
     logger:
       options.logger ??

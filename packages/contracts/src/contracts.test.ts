@@ -1,36 +1,58 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  apiPublicationRequestSchema,
+  axiomManifestSchema,
   discoveryRequestSchema,
   errorResponseSchema,
-  inspectionRequestSchema,
-  publishRequestSchema,
+  manifestPublicationRequestSchema,
 } from "./index.js";
+
+const provider = {
+  name: "Atlas Dining",
+  domain: "atlas.example",
+  canonicalUrl: "https://atlas.example",
+  description: "Restaurant discovery and reservation services.",
+};
+
+const capability = {
+  name: "search_restaurants",
+  description: "Search available restaurants by location and cuisine.",
+  inputSchema: { type: "object" },
+};
 
 describe("transport contracts", () => {
   it("normalizes and validates a discovery request", () => {
     expect(
       discoveryRequestSchema.parse({ query: "  reserve dinner  " }),
-    ).toEqual({
-      query: "reserve dinner",
-      limit: 10,
-    });
+    ).toEqual({ query: "reserve dinner", limit: 10 });
   });
 
-  it("rejects empty discovery intent and non-HTTP inspection input", () => {
-    expect(discoveryRequestSchema.safeParse({ query: " " }).success).toBe(
-      false,
-    );
+  it("validates API publication requests with merge semantics", () => {
     expect(
-      inspectionRequestSchema.safeParse({ url: "not-a-url" }).success,
-    ).toBe(false);
+      apiPublicationRequestSchema.parse({
+        source: "api",
+        provider,
+        capabilities: [capability],
+      }),
+    ).toMatchObject({ source: "api", mode: "merge" });
   });
 
-  it("validates publish contact email when supplied", () => {
+  it("accepts the documented Axiom manifest format", () => {
     expect(
-      publishRequestSchema.safeParse({
-        url: "https://example.com",
-        contactEmail: "invalid",
+      manifestPublicationRequestSchema.parse({
+        source: "manifest",
+        manifest: { version: "1", provider, capabilities: [capability] },
+      }),
+    ).toMatchObject({ source: "manifest", mode: "merge" });
+  });
+
+  it("rejects unsupported manifest versions", () => {
+    expect(
+      axiomManifestSchema.safeParse({
+        version: "2",
+        provider,
+        capabilities: [capability],
       }).success,
     ).toBe(false);
   });

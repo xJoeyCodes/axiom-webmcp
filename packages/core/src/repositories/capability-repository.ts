@@ -1,4 +1,9 @@
 import type { Capability, CapabilityStatus } from "../domain/capability.js";
+import type { JsonValue } from "../domain/json.js";
+
+export interface CapabilityPersistenceOptions {
+  readonly rawContract?: JsonValue;
+}
 
 export interface CapabilityRepository {
   findById(id: string): Promise<Capability | null>;
@@ -10,8 +15,14 @@ export interface CapabilityRepository {
     providerId: string,
     name: string,
   ): Promise<Capability | null>;
-  create(capability: Capability): Promise<Capability>;
-  upsert(capability: Capability): Promise<Capability>;
+  create(
+    capability: Capability,
+    options?: CapabilityPersistenceOptions,
+  ): Promise<Capability>;
+  upsert(
+    capability: Capability,
+    options?: CapabilityPersistenceOptions,
+  ): Promise<Capability>;
   deleteMissingForProvider(
     providerId: string,
     retainedNames: readonly string[],

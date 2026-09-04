@@ -1,16 +1,24 @@
 import {
   ApplicationError,
   type Capability,
+  type CapabilityPersistenceOptions,
   type CapabilityRepository,
   type CapabilityStatus,
   type Provider,
   type ProviderListOptions,
   type ProviderRepository,
+  type RegistryUnitOfWork,
 } from "@axiom/core";
+import {
+  ApiContractAdapter,
+  ManifestAdapter,
+  PublicationInspectionService,
+  PublicationService,
+} from "@axiom/ingestion";
 import { CapabilityService, ProviderService } from "@axiom/registry";
 
-class MemoryProviderRepository implements ProviderRepository {
-  private readonly records = new Map<string, Provider>();
+export class MemoryProviderRepository implements ProviderRepository {
+  readonly records = new Map<string, Provider>();
 
   async findById(id: string) {
     return (
@@ -64,8 +72,9 @@ class MemoryProviderRepository implements ProviderRepository {
   }
 }
 
-class MemoryCapabilityRepository implements CapabilityRepository {
-  private readonly records = new Map<string, Capability>();
+export class MemoryCapabilityRepository implements CapabilityRepository {
+  readonly records = new Map<string, Capability>();
+  readonly rawContracts = new Map<string, unknown>();
 
   private key(providerId: string, name: string) {
     return `${providerId}:${name}`;
@@ -92,20 +101,24 @@ class MemoryCapabilityRepository implements CapabilityRepository {
     return this.records.get(this.key(providerId, name)) ?? null;
   }
 
-  async create(capability: Capability) {
+  async create(capability: Capability, options?: CapabilityPersistenceOptions) {
     const key = this.key(capability.providerId, capability.name);
     if (this.records.has(key)) {
       throw new ApplicationError("CONFLICT", "Capability already exists.");
     }
     this.records.set(key, capability);
+    if (options?.rawContract !== undefined) {
+      this.rawContracts.set(key, options.rawContract);
+    }
     return capability;
   }
 
-  async upsert(capability: Capability) {
-    this.records.set(
-      this.key(capability.providerId, capability.name),
-      capability,
-    );
+  async upsert(capability: Capability, options?: CapabilityPersistenceOptions) {
+    const key = this.key(capability.providerId, capability.name);
+    this.records.set(key, capability);
+    if (options?.rawContract !== undefined) {
+      this.rawContracts.set(key, options.rawContract);
+    }
     return capability;
   }
 
@@ -120,6 +133,7 @@ class MemoryCapabilityRepository implements CapabilityRepository {
         !retainedNames.includes(capability.name)
       ) {
         this.records.delete(key);
+        this.rawContracts.delete(key);
         deleted += 1;
       }
     }
@@ -127,14 +141,60 @@ class MemoryCapabilityRepository implements CapabilityRepository {
   }
 }
 
+class MemoryRegistryUnitOfWork implements RegistryUnitOfWork {
+  constructor(
+    private readonly providers: MemoryProviderRepository,
+    private readonly capabilities: MemoryCapabilityRepository,
+  ) {}
+
+  async execute<T>(
+    operation: Parameters<RegistryUnitOfWork["execute"]>[0],
+  ): Promise<T> {
+    const providerSnapshot = new Map(this.providers.records);
+    const capabilitySnapshot = new Map(this.capabilities.records);
+    const rawSnapshot = new Map(this.capabilities.rawContracts);
+    try {
+      return (await operation({
+        providers: this.providers,
+        capabilities: this.capabilities,
+      })) as T;
+    } catch (error) {
+      this.providers.records.clear();
+      this.capabilities.records.clear();
+      this.capabilities.rawContracts.clear();
+      for (const entry of providerSnapshot)
+        this.providers.records.set(...entry);
+      for (const entry of capabilitySnapshot)
+        this.capabilities.records.set(...entry);
+      for (const entry of rawSnapshot)
+        this.capabilities.rawContracts.set(...entry);
+      throw error;
+    }
+  }
+}
+
 export function createTestRegistry() {
   const providerRepository = new MemoryProviderRepository();
   const capabilityRepository = new MemoryCapabilityRepository();
+  const inspectionService = new PublicationInspectionService(
+    [new ApiContractAdapter(), new ManifestAdapter()],
+    providerRepository,
+    capabilityRepository,
+  );
   return {
     providerService: new ProviderService(providerRepository),
     capabilityService: new CapabilityService(
       providerRepository,
       capabilityRepository,
     ),
+    inspectionService,
+    publicationService: new PublicationService(
+      inspectionService,
+      new MemoryRegistryUnitOfWork(providerRepository, capabilityRepository),
+    ),
+    repositories: {
+      providers: providerRepository,
+      capabilities: capabilityRepository,
+    },
   };
 }

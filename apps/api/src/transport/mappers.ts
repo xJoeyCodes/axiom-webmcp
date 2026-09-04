@@ -1,5 +1,10 @@
 import type { Capability, Provider } from "@axiom/core";
-import type { CapabilityResponse, ProviderResponse } from "@axiom/contracts";
+import type {
+  CapabilityResponse,
+  ProviderResponse,
+  PublicationPlan as PublicationPlanResponse,
+} from "@axiom/contracts";
+import type { PublicationPlan } from "@axiom/ingestion";
 
 export function toProviderResponse(provider: Provider): ProviderResponse {
   return {
@@ -34,5 +39,20 @@ export function toCapabilityResponse(
     contentHash: capability.contentHash,
     createdAt: capability.createdAt.toISOString(),
     updatedAt: capability.updatedAt.toISOString(),
+  };
+}
+
+export function toPublicationPlanResponse(
+  plan: PublicationPlan,
+): PublicationPlanResponse {
+  return {
+    mode: plan.mode,
+    provider: {
+      action: plan.providerAction,
+      slug: plan.existingProvider?.slug ?? null,
+      domain: plan.provider.domain,
+    },
+    summary: plan.summary,
+    capabilities: [...plan.capabilities],
   };
 }

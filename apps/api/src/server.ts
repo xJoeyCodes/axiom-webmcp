@@ -4,7 +4,14 @@ import {
   createDatabase,
   DrizzleCapabilityRepository,
   DrizzleProviderRepository,
+  DrizzleRegistryUnitOfWork,
 } from "@axiom/db";
+import {
+  ApiContractAdapter,
+  ManifestAdapter,
+  PublicationInspectionService,
+  PublicationService,
+} from "@axiom/ingestion";
 import { CapabilityService, ProviderService } from "@axiom/registry";
 
 import { createApp } from "./app.js";
@@ -15,11 +22,21 @@ async function start(): Promise<void> {
   const database = createDatabase(environment.DATABASE_URL);
   const providerRepository = new DrizzleProviderRepository(database.db);
   const capabilityRepository = new DrizzleCapabilityRepository(database.db);
+  const inspectionService = new PublicationInspectionService(
+    [new ApiContractAdapter(), new ManifestAdapter()],
+    providerRepository,
+    capabilityRepository,
+  );
   const registry = {
     providerService: new ProviderService(providerRepository),
     capabilityService: new CapabilityService(
       providerRepository,
       capabilityRepository,
+    ),
+    inspectionService,
+    publicationService: new PublicationService(
+      inspectionService,
+      new DrizzleRegistryUnitOfWork(database.db),
     ),
   };
   const app = await createApp({ environment, registry });
