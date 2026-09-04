@@ -1,6 +1,11 @@
 import "dotenv/config";
 
-import { createDatabase } from "@axiom/db";
+import {
+  createDatabase,
+  DrizzleCapabilityRepository,
+  DrizzleProviderRepository,
+} from "@axiom/db";
+import { CapabilityService, ProviderService } from "@axiom/registry";
 
 import { createApp } from "./app.js";
 import { loadEnvironment } from "./config/environment.js";
@@ -8,7 +13,16 @@ import { loadEnvironment } from "./config/environment.js";
 async function start(): Promise<void> {
   const environment = loadEnvironment();
   const database = createDatabase(environment.DATABASE_URL);
-  const app = await createApp({ environment });
+  const providerRepository = new DrizzleProviderRepository(database.db);
+  const capabilityRepository = new DrizzleCapabilityRepository(database.db);
+  const registry = {
+    providerService: new ProviderService(providerRepository),
+    capabilityService: new CapabilityService(
+      providerRepository,
+      capabilityRepository,
+    ),
+  };
+  const app = await createApp({ environment, registry });
 
   app.addHook("onClose", async () => {
     await database.client.end({ timeout: 5 });

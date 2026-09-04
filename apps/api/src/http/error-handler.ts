@@ -10,6 +10,19 @@ const statusByCode: Record<ApplicationErrorCode, number> = {
   INTERNAL_ERROR: 500,
 };
 
+function hasClientErrorStatus(
+  error: unknown,
+): error is { readonly statusCode: number } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "statusCode" in error &&
+    typeof error.statusCode === "number" &&
+    error.statusCode >= 400 &&
+    error.statusCode < 500
+  );
+}
+
 export function registerErrorHandling(app: FastifyInstance): void {
   app.setNotFoundHandler((request, reply) => {
     return reply.status(404).send({
@@ -46,6 +59,16 @@ export function registerErrorHandling(app: FastifyInstance): void {
             statusCode >= 500 ? "An unexpected error occurred." : error.message,
           requestId: request.id,
           ...(error.details ? { details: error.details } : {}),
+        },
+      });
+    }
+
+    if (hasClientErrorStatus(error)) {
+      return reply.status(400).send({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "The request is invalid.",
+          requestId: request.id,
         },
       });
     }

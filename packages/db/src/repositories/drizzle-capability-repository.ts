@@ -2,11 +2,13 @@ import {
   ApplicationError,
   type Capability,
   type CapabilityRepository,
+  type CapabilityStatus,
 } from "@axiom/core";
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, asc, eq, notInArray } from "drizzle-orm";
 
 import type { AxiomDatabase } from "../client.js";
 import { mapCapabilityRow, toCapabilityRow } from "../mappers.js";
+import { isPostgresUniqueViolation } from "../postgres-errors.js";
 import { capabilities } from "../schema.js";
 
 export class DrizzleCapabilityRepository implements CapabilityRepository {
@@ -21,11 +23,21 @@ export class DrizzleCapabilityRepository implements CapabilityRepository {
     return row ? mapCapabilityRow(row) : null;
   }
 
-  async findByProvider(providerId: string): Promise<readonly Capability[]> {
+  async findByProvider(
+    providerId: string,
+    status?: CapabilityStatus,
+  ): Promise<readonly Capability[]> {
+    const condition = status
+      ? and(
+          eq(capabilities.providerId, providerId),
+          eq(capabilities.status, status),
+        )
+      : eq(capabilities.providerId, providerId);
     const rows = await this.db
       .select()
       .from(capabilities)
-      .where(eq(capabilities.providerId, providerId));
+      .where(condition)
+      .orderBy(asc(capabilities.name));
     return rows.map(mapCapabilityRow);
   }
 
@@ -44,6 +56,31 @@ export class DrizzleCapabilityRepository implements CapabilityRepository {
       )
       .limit(1);
     return row ? mapCapabilityRow(row) : null;
+  }
+
+  async create(capability: Capability): Promise<Capability> {
+    try {
+      const [row] = await this.db
+        .insert(capabilities)
+        .values(toCapabilityRow(capability))
+        .returning();
+      if (!row) {
+        throw new ApplicationError(
+          "INTERNAL_ERROR",
+          "Capability insert returned no record.",
+        );
+      }
+      return mapCapabilityRow(row);
+    } catch (error) {
+      if (isPostgresUniqueViolation(error)) {
+        throw new ApplicationError(
+          "CONFLICT",
+          "That capability is already registered for this provider.",
+          { cause: error },
+        );
+      }
+      throw error;
+    }
   }
 
   async upsert(capability: Capability): Promise<Capability> {

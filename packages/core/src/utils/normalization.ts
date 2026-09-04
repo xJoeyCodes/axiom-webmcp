@@ -20,9 +20,7 @@ function parseHttpUrl(input: string): URL {
     throw new ApplicationError(
       "VALIDATION_ERROR",
       "The URL or domain is invalid.",
-      {
-        cause,
-      },
+      { cause },
     );
   }
 
@@ -82,4 +80,21 @@ export function createProviderSlug(name: string): string {
 
 export function isValidProviderSlug(slug: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(slug);
+}
+
+export function normalizeCapabilityName(name: string): string {
+  const normalized = name.trim();
+
+  if (
+    !normalized ||
+    normalized.length > 160 ||
+    /[\u0000-\u001f\u007f]/u.test(normalized)
+  ) {
+    throw new ApplicationError(
+      "VALIDATION_ERROR",
+      "Capability names must be 1-160 characters and contain no control characters.",
+    );
+  }
+
+  return normalized;
 }

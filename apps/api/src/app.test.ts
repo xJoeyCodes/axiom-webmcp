@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { createApp } from "./app.js";
 import type { Environment } from "./config/environment.js";
+import { createTestRegistry } from "./test/create-test-registry.js";
 
 const environment: Environment = {
   NODE_ENV: "test",
@@ -20,7 +21,11 @@ afterEach(async () => {
 
 describe("API application", () => {
   it("responds to the health endpoint", async () => {
-    const app = await createApp({ environment, logger: false });
+    const app = await createApp({
+      environment,
+      registry: createTestRegistry(),
+      logger: false,
+    });
     applications.push(app);
 
     const response = await app.inject({ method: "GET", url: "/health" });
@@ -31,7 +36,11 @@ describe("API application", () => {
   });
 
   it("returns a stable not-found response without exposing internals", async () => {
-    const app = await createApp({ environment, logger: false });
+    const app = await createApp({
+      environment,
+      registry: createTestRegistry(),
+      logger: false,
+    });
     applications.push(app);
 
     const response = await app.inject({
@@ -48,7 +57,11 @@ describe("API application", () => {
   });
 
   it("only permits configured CORS origins", async () => {
-    const app = await createApp({ environment, logger: false });
+    const app = await createApp({
+      environment,
+      registry: createTestRegistry(),
+      logger: false,
+    });
     applications.push(app);
 
     const allowed = await app.inject({

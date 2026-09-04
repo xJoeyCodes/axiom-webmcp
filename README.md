@@ -1,9 +1,8 @@
 # Axiom
 
-Axiom is the open discovery layer for WebMCP. The completed frontend demonstrates discovery,
-provider inspection, and publishing against a typed mock client. The Backend Phase 0 workspace
-adds the domain, transport, persistence, and HTTP foundations that will replace that mock over
-later phases.
+Axiom is the open discovery layer for WebMCP. The frontend demonstrates discovery, provider
+inspection, and publishing against a typed mock client. The backend workspace now provides a real
+provider and capability registry behind a versioned HTTP API.
 
 ## Repository structure
 
@@ -12,13 +11,14 @@ src/                  Next.js frontend (kept at the repository root)
 apps/api/             Fastify HTTP transport and process lifecycle
 packages/core/        Framework-independent domain, repository ports, errors, and utilities
 packages/contracts/   Zod request/response contracts shared by clients and the API
-packages/db/          Drizzle schema, PostgreSQL mappings, repositories, and migrations
+packages/registry/    Provider and capability application services
+packages/db/          Drizzle schema, PostgreSQL mappings, repositories, migrations, and seed
 ```
 
 The dependency direction is deliberate:
 
 ```text
-HTTP route -> application service -> repository interface -> Drizzle implementation
+HTTP route -> registry service -> repository interface -> Drizzle implementation
                          |
                     Axiom Core
 ```
@@ -49,22 +49,41 @@ Copy `.env.example` to `.env` and adjust values for your environment. Do not com
 ```bash
 docker compose up -d postgres
 npm run db:migrate
+npm run db:seed
 npm run dev:api
 ```
 
-The API exposes one internal liveness endpoint in this phase:
+The seed is idempotent and registers Atlas Dining, Orbit Travel, Pulse Events, and their nine demo
+capabilities. It is never run automatically in production.
+
+## HTTP API
+
+The internal liveness endpoint remains unversioned:
 
 ```text
-GET http://127.0.0.1:4000/health
+GET /health
 ```
 
-```json
-{ "status": "ok", "service": "axiom-api" }
+Registry product endpoints are versioned:
+
+```text
+POST  /v1/providers
+GET   /v1/providers?limit=20&offset=0&status=active
+GET   /v1/providers/:slug
+PATCH /v1/providers/:slug
+
+POST /v1/providers/:slug/capabilities
+GET  /v1/providers/:slug/capabilities
+GET  /v1/providers/:slug/capabilities/:capabilityName
+PUT  /v1/providers/:slug/capabilities/:capabilityName
 ```
 
-Public product endpoints will be introduced under `/v1` in later backend phases. Discovery,
-inspection, publishing, authentication, crawling, embeddings, and capability execution are not
-implemented here.
+All resource responses use a `{ "data": ... }` envelope. Lists add pagination where relevant, and
+capability PUT responses include `meta.outcome` as `created`, `updated`, or `unchanged`. Public
+provider requests cannot set verification, lifecycle, indexing, or timestamp fields.
+
+Discovery, inspection, authentication, crawling, embeddings, and capability execution are not
+implemented in this phase.
 
 ## Database workflow
 
@@ -74,6 +93,7 @@ deployment mechanism; automatic schema synchronization is not used.
 ```bash
 npm run db:generate
 npm run db:migrate
+npm run db:seed
 npm run db:studio
 ```
 
@@ -96,7 +116,7 @@ can be built with `npm run build:api` and started from compiled output with `npm
 
 ## Frontend compatibility
 
-The frontend's `AxiomClient` continues to use `MockAxiomClient`. The transport schemas define the
-future HTTP shapes for `discover`, `getProvider`, `inspect`, and `publish`. An eventual
-`HttpAxiomClient` should map ISO timestamps and normalized backend entities into the existing UI
-models rather than importing database types into React code.
+The frontend's `AxiomClient` continues to use `MockAxiomClient`. The registry transport schemas now
+cover provider and capability retrieval needed by a future `HttpAxiomClient`. That adapter should
+map ISO timestamps and normalized backend entities into existing UI models rather than importing
+database types into React code.
