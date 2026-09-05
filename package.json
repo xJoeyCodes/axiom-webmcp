@@ -12,7 +12,7 @@
     "dev:api": "npm run dev --workspace @axiom/api",
     "build": "next build",
     "build:web": "next build",
-    "build:packages": "npm run build --workspace @axiom/core && npm run build --workspace @axiom/contracts && npm run build --workspace @axiom/registry && npm run build --workspace @axiom/ingestion && npm run build --workspace @axiom/discovery && npm run build --workspace @axiom/db && npm run build:client",
+    "build:packages": "npm run build --workspace @axiom/core && npm run build --workspace @axiom/contracts && npm run build --workspace @axiom/registry && npm run build --workspace @axiom/ingestion && npm run build --workspace @axiom/discovery && npm run build --workspace @axiom/db && npm run build:client && npm run build:sdk && npm run build:cli",
     "build:api": "npm run build:packages && npm run build --workspace @axiom/api",
     "build:all": "npm run build:web && npm run build:api",
     "start": "next start",
@@ -20,7 +20,7 @@
     "index:rebuild": "npm run index:rebuild --workspace @axiom/api",
     "eval:discovery": "npm run eval:discovery --workspace @axiom/api",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit && npm run typecheck --workspace @axiom/core && npm run typecheck --workspace @axiom/contracts && npm run typecheck --workspace @axiom/registry && npm run typecheck --workspace @axiom/ingestion && npm run typecheck --workspace @axiom/discovery && npm run typecheck --workspace @axiom/db && npm run typecheck --workspace @axiom/api && npm run typecheck --workspace @axiom-webmcp/client",
+    "typecheck": "tsc --noEmit && npm run typecheck --workspace @axiom/core && npm run typecheck --workspace @axiom/contracts && npm run typecheck --workspace @axiom/registry && npm run typecheck --workspace @axiom/ingestion && npm run typecheck --workspace @axiom/discovery && npm run typecheck --workspace @axiom/db && npm run typecheck --workspace @axiom/api && npm run typecheck --workspace @axiom-webmcp/client && npm run typecheck --workspace @axiom-webmcp/sdk && npm run typecheck --workspace @axiom-webmcp/cli",
     "test": "npm run build:packages && vitest run",
     "db:generate": "npm run db:generate --workspace @axiom/db",
     "db:migrate": "npm run db:migrate --workspace @axiom/db",
@@ -29,7 +29,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build:client": "npm run build --workspace @axiom-webmcp/client",
-    "test:client": "npm run test --workspace @axiom-webmcp/client"
+    "test:client": "npm run test --workspace @axiom-webmcp/client",
+    "build:sdk": "npm run build --workspace @axiom-webmcp/sdk",
+    "test:sdk": "npm run test --workspace @axiom-webmcp/sdk",
+    "build:cli": "npm run build --workspace @axiom-webmcp/cli",
+    "test:cli": "npm run test --workspace @axiom-webmcp/cli"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

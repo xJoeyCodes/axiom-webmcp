@@ -15,6 +15,9 @@ packages/registry/    Provider and capability application services
 packages/ingestion/   Source adapters, normalization, validation, diffing, and publishing
 packages/discovery/   Search documents, embedding adapters, indexing, ranking, and evaluation
 packages/db/          Drizzle schema, PostgreSQL/pgvector repositories, migrations, and seed
+packages/client/      Agent-oriented discovery client
+packages/sdk/         Website-developer publishing SDK
+packages/cli/         Website-developer manifest CLI
 ```
 
 Core knows only the `EmbeddingProvider` and repository ports. It does not import OpenAI, Fastify,
@@ -105,8 +108,8 @@ Publishing indexes created/changed capabilities after the registry transaction c
 capabilities are not re-embedded. Provider metadata changes reindex all of that provider's active
 capabilities when published. Direct provider metadata PATCHes are excluded from discovery until
 `index:rebuild` refreshes their fingerprints. Discovery also rejects embeddings from a different
-model or document version. Capability updates invalidate stored vectors immediately; failed external indexing
-leaves valid registry records with `embedding_status = failed`.
+model or document version. Capability updates invalidate stored vectors immediately; failed
+external indexing leaves valid registry records with `embedding_status = failed`.
 
 Ranking centralizes three signals: 90% cosine similarity, an 8% deterministic lexical boost, and a
 2% verification boost. Providers are grouped by their best capability with a capped bonus for
@@ -169,9 +172,9 @@ npm run build:all
 ```
 
 Checked-in Drizzle SQL migrations are the production deployment mechanism. The frontend still uses
-`MockAxiomClient`; HTTP wiring is deferred. Live WebMCP inspection, agent execution, CLI/client npm
-packages, authentication, ownership verification, LLM rewriting, queues, and external vector
-databases remain outside this phase.
+`MockAxiomClient`; HTTP wiring is deferred. Live WebMCP inspection, agent execution,
+authentication, ownership verification, LLM rewriting, queues, and external vector databases
+remain outside this phase.
 
 ## Optional PostgreSQL regression test
 
@@ -186,11 +189,24 @@ of superseded embedding writes. It creates a uniquely identified provider and re
 fixture afterward. Without this environment variable it is explicitly skipped; normal tests use
 deterministic embeddings and do not measure real OpenAI retrieval accuracy.
 
-## Agent developer client
+## For agent developers
 
 `packages/client` provides the ESM `@axiom-webmcp/client` agent consumption SDK with discovery,
 provider lookup, and capability lookup. It uses shared runtime-validated contracts, native or
 injected fetch, bounded deadlines, and typed API/network errors. It does not execute WebMCP tools.
+
+```bash
+npm install @axiom-webmcp/client
+```
+
+```ts
+import { Axiom } from "@axiom-webmcp/client";
+
+const axiom = new Axiom({ baseUrl: "http://127.0.0.1:4000" });
+const result = await axiom.discover({ intent: "reserve dinner" });
+```
+
+Build and test it locally with:
 
 ```bash
 npm run build:client
@@ -200,3 +216,34 @@ node examples/agent-discovery/index.mjs http://127.0.0.1:4000 "reserve dinner"
 
 See `packages/client/README.md` for usage and packaging details. The package is not yet published;
 the client package is MIT licensed.
+
+## For website developers
+
+Website developers can send validated capability contracts through the distinct publishing SDK, or
+use the CLI with a local `axiom.json` manifest:
+
+```bash
+npm install @axiom-webmcp/sdk
+```
+
+```ts
+import { AxiomPublisher } from "@axiom-webmcp/sdk";
+
+const publisher = new AxiomPublisher({ baseUrl: "http://127.0.0.1:4000" });
+const preview = await publisher.inspect(manifest);
+const publication = await publisher.publish(manifest);
+```
+
+```bash
+npm run build:packages
+npm exec --workspace @axiom-webmcp/cli -- axiom init
+npm exec --workspace @axiom-webmcp/cli -- axiom inspect
+npm exec --workspace @axiom-webmcp/cli -- axiom publish --yes
+npm exec --workspace @axiom-webmcp/cli -- axiom search "book a restaurant"
+```
+
+The manifest is read as untrusted JSON and is never executed. `inspect` validates locally before
+requesting a non-persistent publication plan; `publish` confirms that plan and delegates all
+normalization, diffing, persistence, and semantic indexing to the backend. `search` reuses the
+agent client to test discoverability. See `packages/sdk/README.md`, `packages/cli/README.md`, and
+`examples/publisher/README.md`. Both packages are publish-ready, not published, and MIT licensed.
