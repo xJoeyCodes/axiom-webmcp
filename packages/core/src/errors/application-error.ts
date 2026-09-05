@@ -1,5 +1,9 @@
 export type ApplicationErrorCode =
-  "VALIDATION_ERROR" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_ERROR";
+  | "VALIDATION_ERROR"
+  | "NOT_FOUND"
+  | "CONFLICT"
+  | "SERVICE_UNAVAILABLE"
+  | "INTERNAL_ERROR";
 
 export class ApplicationError extends Error {
   readonly code: ApplicationErrorCode;

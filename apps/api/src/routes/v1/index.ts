@@ -1,3 +1,4 @@
+import type { DiscoveryService } from "@axiom/discovery";
 import type {
   PublicationInspectionService,
   PublicationService,
@@ -6,6 +7,7 @@ import type { CapabilityService, ProviderService } from "@axiom/registry";
 import type { FastifyInstance } from "fastify";
 
 import { registerCapabilityRoutes } from "./capabilities.js";
+import { registerDiscoveryRoutes } from "./discovery.js";
 import { registerPublicationRoutes } from "./publications.js";
 import { registerProviderRoutes } from "./providers.js";
 
@@ -14,6 +16,7 @@ export interface RegistryRoutesOptions {
   readonly capabilityService: CapabilityService;
   readonly inspectionService: PublicationInspectionService;
   readonly publicationService: PublicationService;
+  readonly discoveryService: DiscoveryService;
 }
 
 export async function registerRegistryRoutes(
@@ -31,5 +34,8 @@ export async function registerRegistryRoutes(
     inspectionService: options.inspectionService,
     publicationService: options.publicationService,
     capabilityService: options.capabilityService,
+  });
+  await app.register(registerDiscoveryRoutes, {
+    discoveryService: options.discoveryService,
   });
 }

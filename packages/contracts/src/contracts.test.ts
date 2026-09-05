@@ -22,10 +22,13 @@ const capability = {
 };
 
 describe("transport contracts", () => {
-  it("normalizes and validates a discovery request", () => {
+  it("normalizes and validates a discovery intent", () => {
     expect(
-      discoveryRequestSchema.parse({ query: "  reserve dinner  " }),
-    ).toEqual({ query: "reserve dinner", limit: 10 });
+      discoveryRequestSchema.parse({ intent: "  reserve dinner  " }),
+    ).toEqual({ intent: "reserve dinner", limit: 10 });
+    expect(
+      discoveryRequestSchema.safeParse({ intent: "", limit: 10 }).success,
+    ).toBe(false);
   });
 
   it("validates API publication requests with merge semantics", () => {
@@ -61,11 +64,11 @@ describe("transport contracts", () => {
     expect(
       errorResponseSchema.parse({
         error: {
-          code: "NOT_FOUND",
-          message: "Provider not found.",
+          code: "SERVICE_UNAVAILABLE",
+          message: "Embedding provider unavailable.",
           requestId: "request-1",
         },
       }),
-    ).toMatchObject({ error: { code: "NOT_FOUND" } });
+    ).toMatchObject({ error: { code: "SERVICE_UNAVAILABLE" } });
   });
 });

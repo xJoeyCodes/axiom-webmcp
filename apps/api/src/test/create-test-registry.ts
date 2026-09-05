@@ -10,6 +10,11 @@ import {
   type RegistryUnitOfWork,
 } from "@axiom/core";
 import {
+  CapabilityIndexingService,
+  DiscoveryService,
+  FakeEmbeddingProvider,
+} from "@axiom/discovery";
+import {
   ApiContractAdapter,
   ManifestAdapter,
   PublicationInspectionService,
@@ -17,19 +22,18 @@ import {
 } from "@axiom/ingestion";
 import { CapabilityService, ProviderService } from "@axiom/registry";
 
+import { MemoryCapabilityIndexRepository } from "./memory-capability-index.js";
+
 export class MemoryProviderRepository implements ProviderRepository {
   readonly records = new Map<string, Provider>();
-
   async findById(id: string) {
     return (
       [...this.records.values()].find((provider) => provider.id === id) ?? null
     );
   }
-
   async findBySlug(slug: string) {
     return this.records.get(slug) ?? null;
   }
-
   async findByDomain(domain: string) {
     return (
       [...this.records.values()].find(
@@ -37,7 +41,6 @@ export class MemoryProviderRepository implements ProviderRepository {
       ) ?? null
     );
   }
-
   async list(options: ProviderListOptions) {
     const matches = [...this.records.values()]
       .filter(
@@ -49,7 +52,6 @@ export class MemoryProviderRepository implements ProviderRepository {
       total: matches.length,
     };
   }
-
   async create(provider: Provider) {
     if (
       this.records.has(provider.slug) ||
@@ -60,12 +62,10 @@ export class MemoryProviderRepository implements ProviderRepository {
     this.records.set(provider.slug, provider);
     return provider;
   }
-
   async update(provider: Provider) {
     this.records.set(provider.slug, provider);
     return provider;
   }
-
   async upsert(provider: Provider) {
     this.records.set(provider.slug, provider);
     return provider;
@@ -75,18 +75,15 @@ export class MemoryProviderRepository implements ProviderRepository {
 export class MemoryCapabilityRepository implements CapabilityRepository {
   readonly records = new Map<string, Capability>();
   readonly rawContracts = new Map<string, unknown>();
-
   private key(providerId: string, name: string) {
     return `${providerId}:${name}`;
   }
-
   async findById(id: string) {
     return (
       [...this.records.values()].find((capability) => capability.id === id) ??
       null
     );
   }
-
   async findByProvider(providerId: string, status?: CapabilityStatus) {
     return [...this.records.values()]
       .filter(
@@ -96,32 +93,26 @@ export class MemoryCapabilityRepository implements CapabilityRepository {
       )
       .sort((left, right) => left.name.localeCompare(right.name));
   }
-
   async findByProviderAndName(providerId: string, name: string) {
     return this.records.get(this.key(providerId, name)) ?? null;
   }
-
   async create(capability: Capability, options?: CapabilityPersistenceOptions) {
     const key = this.key(capability.providerId, capability.name);
     if (this.records.has(key)) {
       throw new ApplicationError("CONFLICT", "Capability already exists.");
     }
     this.records.set(key, capability);
-    if (options?.rawContract !== undefined) {
+    if (options?.rawContract !== undefined)
       this.rawContracts.set(key, options.rawContract);
-    }
     return capability;
   }
-
   async upsert(capability: Capability, options?: CapabilityPersistenceOptions) {
     const key = this.key(capability.providerId, capability.name);
     this.records.set(key, capability);
-    if (options?.rawContract !== undefined) {
+    if (options?.rawContract !== undefined)
       this.rawContracts.set(key, options.rawContract);
-    }
     return capability;
   }
-
   async deleteMissingForProvider(
     providerId: string,
     retainedNames: readonly string[],
@@ -146,7 +137,6 @@ class MemoryRegistryUnitOfWork implements RegistryUnitOfWork {
     private readonly providers: MemoryProviderRepository,
     private readonly capabilities: MemoryCapabilityRepository,
   ) {}
-
   async execute<T>(
     operation: Parameters<RegistryUnitOfWork["execute"]>[0],
   ): Promise<T> {
@@ -176,6 +166,17 @@ class MemoryRegistryUnitOfWork implements RegistryUnitOfWork {
 export function createTestRegistry() {
   const providerRepository = new MemoryProviderRepository();
   const capabilityRepository = new MemoryCapabilityRepository();
+  const indexRepository = new MemoryCapabilityIndexRepository(
+    providerRepository,
+    capabilityRepository,
+  );
+  const embeddingProvider = new FakeEmbeddingProvider();
+  const indexingService = new CapabilityIndexingService(
+    providerRepository,
+    capabilityRepository,
+    indexRepository,
+    embeddingProvider,
+  );
   const inspectionService = new PublicationInspectionService(
     [new ApiContractAdapter(), new ManifestAdapter()],
     providerRepository,
@@ -191,10 +192,14 @@ export function createTestRegistry() {
     publicationService: new PublicationService(
       inspectionService,
       new MemoryRegistryUnitOfWork(providerRepository, capabilityRepository),
+      indexingService,
     ),
+    discoveryService: new DiscoveryService(embeddingProvider, indexRepository),
+    indexingService,
     repositories: {
       providers: providerRepository,
       capabilities: capabilityRepository,
+      index: indexRepository,
     },
   };
 }

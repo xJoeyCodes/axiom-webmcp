@@ -103,6 +103,13 @@ export const publicationPlanSchema = z.object({
   ),
 });
 
+export const publicationIndexingSummarySchema = z.object({
+  ready: z.number().int().min(0),
+  failed: z.number().int().min(0),
+  unchanged: z.number().int().min(0),
+  pending: z.number().int().min(0),
+});
+
 export const inspectPublicationResponseSchema = z.object({
   data: z.object({
     valid: z.literal(true),
@@ -115,6 +122,7 @@ export const publishResponseSchema = z.object({
   data: z.object({
     provider: providerResponseSchema,
     summary: publicationSummarySchema,
+    indexing: publicationIndexingSummarySchema,
     capabilities: z.array(capabilityResponseSchema),
     warnings: z.array(publicationWarningSchema),
   }),

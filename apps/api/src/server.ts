@@ -2,10 +2,16 @@ import "dotenv/config";
 
 import {
   createDatabase,
+  DrizzleCapabilityIndexRepository,
   DrizzleCapabilityRepository,
   DrizzleProviderRepository,
   DrizzleRegistryUnitOfWork,
 } from "@axiom/db";
+import {
+  CapabilityIndexingService,
+  DiscoveryService,
+  OpenAIEmbeddingProvider,
+} from "@axiom/discovery";
 import {
   ApiContractAdapter,
   ManifestAdapter,
@@ -22,6 +28,17 @@ async function start(): Promise<void> {
   const database = createDatabase(environment.DATABASE_URL);
   const providerRepository = new DrizzleProviderRepository(database.db);
   const capabilityRepository = new DrizzleCapabilityRepository(database.db);
+  const indexRepository = new DrizzleCapabilityIndexRepository(database.db);
+  const embeddingProvider = new OpenAIEmbeddingProvider({
+    apiKey: environment.OPENAI_API_KEY,
+    model: environment.EMBEDDING_MODEL,
+  });
+  const indexingService = new CapabilityIndexingService(
+    providerRepository,
+    capabilityRepository,
+    indexRepository,
+    embeddingProvider,
+  );
   const inspectionService = new PublicationInspectionService(
     [new ApiContractAdapter(), new ManifestAdapter()],
     providerRepository,
@@ -37,7 +54,9 @@ async function start(): Promise<void> {
     publicationService: new PublicationService(
       inspectionService,
       new DrizzleRegistryUnitOfWork(database.db),
+      indexingService,
     ),
+    discoveryService: new DiscoveryService(embeddingProvider, indexRepository),
   };
   const app = await createApp({ environment, registry });
 

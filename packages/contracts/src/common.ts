@@ -17,6 +17,7 @@ export const applicationErrorCodeSchema = z.enum([
   "VALIDATION_ERROR",
   "NOT_FOUND",
   "CONFLICT",
+  "SERVICE_UNAVAILABLE",
   "INTERNAL_ERROR",
 ]);
 

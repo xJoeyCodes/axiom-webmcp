@@ -74,8 +74,28 @@ export interface PublicationInspection {
   readonly warnings: readonly PublicationWarning[];
 }
 
+export interface PublicationIndexingSummary {
+  readonly ready: number;
+  readonly failed: number;
+  readonly unchanged: number;
+  readonly pending: number;
+}
+
+export interface PublicationIndexerResult {
+  readonly ready: number;
+  readonly failed: number;
+  readonly unchanged: number;
+}
+
+export interface PublicationIndexer {
+  indexCapabilities(
+    capabilityIds: readonly string[],
+  ): Promise<PublicationIndexerResult>;
+}
+
 export interface PublicationResult {
   readonly provider: Provider;
   readonly plan: PublicationPlan;
   readonly warnings: readonly PublicationWarning[];
+  readonly indexing: PublicationIndexingSummary;
 }

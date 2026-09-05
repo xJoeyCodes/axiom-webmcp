@@ -110,6 +110,15 @@ export class DrizzleCapabilityRepository implements CapabilityRepository {
           status: capability.status,
           contentHash: capability.contentHash,
           ...rawContractUpdate,
+          embedding: null,
+          embeddingStatus: "pending",
+          embeddingProvider: null,
+          embeddingModel: null,
+          embeddingDimensions: null,
+          embeddingVersion: null,
+          searchDocumentVersion: null,
+          embeddingFingerprint: null,
+          embeddingUpdatedAt: null,
           updatedAt: capability.updatedAt,
         },
       })
@@ -121,7 +130,6 @@ export class DrizzleCapabilityRepository implements CapabilityRepository {
         "Capability upsert returned no record.",
       );
     }
-
     return mapCapabilityRow(row);
   }
 

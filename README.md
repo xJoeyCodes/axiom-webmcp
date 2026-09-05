@@ -1,52 +1,48 @@
 # Axiom
 
 Axiom is the open discovery layer for WebMCP. The frontend demonstrates discovery, provider
-inspection, and publishing behind a typed client boundary. The backend workspace provides a real
-provider/capability registry plus a normalized, transactional publication pipeline.
+inspection, and publishing behind a typed client boundary. The backend provides a real registry,
+transactional publication pipeline, and semantic capability discovery through PostgreSQL/pgvector.
 
 ## Repository structure
 
 ```text
 src/                  Next.js frontend (kept at the repository root)
-apps/api/             Fastify HTTP transport and process lifecycle
-packages/core/        Framework-independent domain, repository ports, errors, and utilities
-packages/contracts/   Zod request/response and Axiom manifest contracts
+apps/api/             Fastify HTTP transport, process lifecycle, and maintenance commands
+packages/core/        Framework-independent domain, ports, errors, and utilities
+packages/contracts/   Shared Zod transport and Axiom manifest contracts
 packages/registry/    Provider and capability application services
 packages/ingestion/   Source adapters, normalization, validation, diffing, and publishing
-packages/db/          Drizzle schema, PostgreSQL mappings, repositories, migrations, and seed
+packages/discovery/   Search documents, embedding adapters, indexing, ranking, and evaluation
+packages/db/          Drizzle schema, PostgreSQL/pgvector repositories, migrations, and seed
 ```
 
-The dependency direction is deliberate:
+Core knows only the `EmbeddingProvider` and repository ports. It does not import OpenAI, Fastify,
+Drizzle, PostgreSQL, Next.js, browser APIs, or an embedding SDK. The OpenAI adapter is isolated in
+`packages/discovery`; tests use a deterministic fake provider and never call OpenAI.
 
-```text
-HTTP route -> publication service -> ingestion / diff -> registry service
-                                                        |
-                                             repository interfaces
-                                                        |
-                                               Drizzle/PostgreSQL
-```
-
-Core does not import Fastify, Drizzle, PostgreSQL, Next.js, browser APIs, or an embedding provider.
-Source adapters normalize API contracts and the Axiom manifest into one stable capability model.
-The normalized representation powers the registry, while `raw_contract` preserves source material
-for debugging, re-indexing, and future WebMCP spec migrations.
-
-## Prerequisites
+## Prerequisites and environment
 
 - Node.js 22+
 - npm 11+
-- Docker with Compose, or another PostgreSQL 17 server with the `vector` extension available
+- Docker with Compose, or PostgreSQL 17 with pgvector
 
-Copy `.env.example` to `.env` and adjust values for your environment. Do not commit `.env`.
+Copy `.env.example` to `.env`. Do not commit `.env`.
 
-| Variable       | Purpose                                      | Example                                         |
-| -------------- | -------------------------------------------- | ----------------------------------------------- |
-| `DATABASE_URL` | PostgreSQL connection used by API/migrations | `postgresql://axiom:axiom@localhost:5432/axiom` |
-| `API_HOST`     | API bind address                             | `127.0.0.1`                                     |
-| `PORT`         | API port                                     | `4000`                                          |
-| `LOG_LEVEL`    | Pino/Fastify log level                       | `info`                                          |
-| `NODE_ENV`     | Runtime environment                          | `development`                                   |
-| `CORS_ORIGINS` | Comma-separated allowed browser origins      | `http://localhost:3000`                         |
+| Variable          | Purpose                                            | Default/example                                 |
+| ----------------- | -------------------------------------------------- | ----------------------------------------------- |
+| `DATABASE_URL`    | API, migration, and indexing PostgreSQL connection | `postgresql://axiom:axiom@localhost:5432/axiom` |
+| `OPENAI_API_KEY`  | Required when indexing or discovering              | No default                                      |
+| `EMBEDDING_MODEL` | Schema-compatible embedding model                  | `text-embedding-3-small`                        |
+| `API_HOST`        | API bind address                                   | `127.0.0.1`                                     |
+| `PORT`            | API port                                           | `4000`                                          |
+| `LOG_LEVEL`       | Fastify/Pino log level                             | `info`                                          |
+| `CORS_ORIGINS`    | Comma-separated allowed browser origins            | `http://localhost:3000`                         |
+
+The API can start without `OPENAI_API_KEY`; registry and inspection routes remain usable. Publish
+will commit registry changes and report failed indexing, while discovery returns a controlled 503
+until credentials are configured. `EMBEDDING_MODEL` is deliberately restricted to
+`text-embedding-3-small`: the database schema fixes vectors at 1024 dimensions.
 
 ## Local development
 
@@ -54,25 +50,21 @@ Copy `.env.example` to `.env` and adjust values for your environment. Do not com
 docker compose up -d postgres
 npm run db:migrate
 npm run db:seed
+npm run index:rebuild
 npm run dev:api
 ```
 
-The seed is idempotent and registers Atlas Dining, Orbit Travel, Pulse Events, and their nine demo
-capabilities. It is never run automatically in production.
+The idempotent seed registers Atlas Dining, Orbit Travel, Pulse Events, and nine capabilities.
+Northstar Commerce is available as the publication fixture in `packages/ingestion` and can be sent
+through `/v1/publish`. Seed records begin pending and become discoverable after indexing.
 
 ## HTTP API
 
-The internal liveness endpoint remains unversioned:
-
 ```text
-GET /health
-```
+GET  /health
 
-Registry product endpoints are versioned:
-
-```text
 POST  /v1/providers
-GET   /v1/providers?limit=20&offset=0&status=active
+GET   /v1/providers
 GET   /v1/providers/:slug
 PATCH /v1/providers/:slug
 
@@ -83,78 +75,92 @@ PUT  /v1/providers/:slug/capabilities/:capabilityName
 
 POST /v1/inspect
 POST /v1/publish
+POST /v1/discover
 ```
 
-`POST /v1/inspect` validates, normalizes, hashes, and diffs a publication without writing it.
-`POST /v1/publish` repeats the same plan inside a database transaction and persists provider and
-capability changes atomically. Publication mode is currently `merge`: missing registry capabilities
-are retained, never deleted or disabled. Identical repeat publications return `unchanged` and avoid
-capability writes.
+Discovery accepts a compact agent-oriented request:
 
-All resource responses use a `{ "data": ... }` envelope. Public requests cannot set verification,
-lifecycle, indexing, ownership, or timestamp fields. The API body limit is 2 MiB; a publication may
-contain at most 100 capabilities, and each capability's combined schemas may be at most 128 KiB.
+```json
+{ "intent": "book somewhere for dinner", "limit": 10 }
+```
+
+It returns providers ordered by relevance with their matched capability contracts. Scores are
+0-1 relevance values, not calibrated probabilities or confidence claims. Embeddings are never
+returned.
+
+## Semantic index
+
+Migration `0001_soft_peter_quill.sql` adds nullable `vector(1024)` storage plus pending/ready/failed
+status, provider/model/dimension/version metadata, search-document version, fingerprint, and update
+timestamp. Retrieval uses exact cosine distance and only active providers with active, ready
+capabilities. No ANN index is required at hackathon scale.
+
+Search document version `1` deterministically includes capability name/description, provider
+name/description, meaningful input field names/descriptions/enums, and a compact behavior cue. It
+excludes IDs, timestamps, hashes, and raw schema JSON. Documents are capped at 6,000 characters;
+indexing uses batches of at most 32 capabilities. Its fingerprint covers capability content,
+provider semantic metadata, embedding provider/model/dimensions/version, and document version.
+
+Publishing indexes created/changed capabilities after the registry transaction commits. Identical
+capabilities are not re-embedded. Provider metadata changes reindex all of that provider's active
+capabilities when published. Direct provider metadata PATCHes are excluded from discovery until
+`index:rebuild` refreshes their fingerprints. Discovery also rejects embeddings from a different
+model or document version. Capability updates invalidate stored vectors immediately; failed external indexing
+leaves valid registry records with `embedding_status = failed`.
+
+Ranking centralizes three signals: 90% cosine similarity, an 8% deterministic lexical boost, and a
+2% verification boost. Providers are grouped by their best capability with a capped bonus for
+additional relevant capabilities. Candidate retrieval intentionally fetches more capabilities than
+the final provider limit.
+
+## Maintenance and evaluation
+
+```bash
+npm run index:rebuild
+npm run eval:discovery
+```
+
+`index:rebuild` scans active capabilities and skips ready records whose fingerprints are current.
+`eval:discovery` is manual: it requires PostgreSQL, indexed demo data, and `OPENAI_API_KEY`. It runs
+the checked-in 12-query fixture and prints measured top-1 provider, top-3 provider, and expected
+capability hit counts. It is excluded from normal tests and never fabricates results.
 
 ## Axiom manifest
 
-`axiom.json` is an Axiom ingestion format, not an official WebMCP specification. It provides a
-stable handoff for developer tools while WebMCP continues to evolve.
-
-```json
-{
-  "version": "1",
-  "provider": {
-    "name": "Atlas Dining",
-    "domain": "atlas.example",
-    "canonicalUrl": "https://atlas.example",
-    "description": "Restaurant discovery and reservation services."
-  },
-  "capabilities": [
-    {
-      "name": "search_restaurants",
-      "description": "Search available restaurants.",
-      "inputSchema": {
-        "type": "object",
-        "properties": { "location": { "type": "string" } }
-      },
-      "annotations": { "readOnly": true }
-    }
-  ]
-}
-```
-
-Send the manifest directly—Axiom does not fetch arbitrary URLs in this phase:
+`axiom.json` is an Axiom ingestion format, not an official WebMCP specification. Send it inline as:
 
 ```json
 {
   "source": "manifest",
   "mode": "merge",
-  "manifest": { "version": "1", "provider": {}, "capabilities": [] }
+  "manifest": {
+    "version": "1",
+    "provider": {
+      "name": "Atlas Dining",
+      "domain": "atlas.example",
+      "canonicalUrl": "https://atlas.example",
+      "description": "Restaurant discovery and reservation services."
+    },
+    "capabilities": [
+      {
+        "name": "search_restaurants",
+        "description": "Search available restaurants.",
+        "inputSchema": { "type": "object" },
+        "annotations": { "readOnly": true }
+      }
+    ]
+  }
 }
 ```
 
-Direct contract ingestion uses `source: "api"` with top-level `provider` and `capabilities` fields.
-The `packages/ingestion` Northstar Commerce fixture demonstrates the full four-capability payload.
+Axiom does not fetch arbitrary manifest URLs. Publication mode remains non-destructive `merge`.
 
-## Database workflow
-
-`packages/db/src/schema.ts` is the source of truth. Checked-in SQL migrations are the production
-deployment mechanism; automatic schema synchronization is not used.
+## Database and validation workflow
 
 ```bash
 npm run db:generate
 npm run db:migrate
 npm run db:seed
-npm run db:studio
-```
-
-The initial migration already includes optional raw-contract storage, provider/capability
-uniqueness constraints, and lookup indexes. It enables pgvector for future use but intentionally
-defines no embedding column, model, dimension, generation logic, query, or ANN index.
-
-## Validation
-
-```bash
 npm run format:check
 npm run lint
 npm run typecheck
@@ -162,12 +168,20 @@ npm test
 npm run build:all
 ```
 
-The frontend remains independently available through `npm run dev` and `npm run build`. The API
-can be built with `npm run build:api` and started from compiled output with `npm run start:api`.
+Checked-in Drizzle SQL migrations are the production deployment mechanism. The frontend still uses
+`MockAxiomClient`; HTTP wiring is deferred. Live WebMCP inspection, agent execution, CLI/client npm
+packages, authentication, ownership verification, LLM rewriting, queues, and external vector
+databases remain outside this phase.
 
-## Current boundaries
+## Optional PostgreSQL regression test
 
-The frontend still uses `MockAxiomClient`; HTTP client wiring is intentionally deferred until the
-backend discovery phase. Live website fetching/runtime inspection, semantic discovery, embeddings,
-authentication, ownership verification, execution, CLI packages, and SDK packages are not part of
-this phase.
+Set `AXIOM_TEST_DATABASE_URL` to a dedicated test database with migrations applied, then run:
+
+```bash
+npx vitest run packages/db/src/vector.integration.test.ts
+```
+
+The test checks cosine ordering, readiness/status filtering, capability invalidation, and rejection
+of superseded embedding writes. It creates a uniquely identified provider and removes only that
+fixture afterward. Without this environment variable it is explicitly skipped; normal tests use
+deterministic embeddings and do not measure real OpenAI retrieval accuracy.

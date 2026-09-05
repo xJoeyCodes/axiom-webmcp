@@ -74,6 +74,8 @@ export async function registerPublicationRoutes(
           createCount: result.plan.summary.create,
           updateCount: result.plan.summary.update,
           unchangedCount: result.plan.summary.unchanged,
+          indexingReady: result.indexing.ready,
+          indexingFailed: result.indexing.failed,
         },
         "Publication completed",
       );
@@ -82,6 +84,7 @@ export async function registerPublicationRoutes(
           data: {
             provider: toProviderResponse(result.provider),
             summary: result.plan.summary,
+            indexing: result.indexing,
             capabilities: capabilities.map(toCapabilityResponse),
             warnings: result.warnings,
           },

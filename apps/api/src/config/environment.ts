@@ -1,4 +1,4 @@
-import { ApplicationError } from "@axiom/core";
+import { ApplicationError, DEFAULT_EMBEDDING_MODEL } from "@axiom/core";
 import { z } from "zod";
 
 const environmentSchema = z.object({
@@ -13,10 +13,16 @@ const environmentSchema = z.object({
     .refine(
       (value) =>
         value.startsWith("postgres://") || value.startsWith("postgresql://"),
-      {
-        message: "DATABASE_URL must use the postgres or postgresql scheme.",
-      },
+      { message: "DATABASE_URL must use the postgres or postgresql scheme." },
     ),
+  OPENAI_API_KEY: z
+    .string()
+    .trim()
+    .transform((value) => value || undefined)
+    .optional(),
+  EMBEDDING_MODEL: z
+    .literal(DEFAULT_EMBEDDING_MODEL)
+    .default(DEFAULT_EMBEDDING_MODEL),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
@@ -39,13 +45,15 @@ const environmentSchema = z.object({
     ),
 });
 
-export type Environment = z.infer<typeof environmentSchema>;
+type ParsedEnvironment = z.infer<typeof environmentSchema>;
+export type Environment = Omit<ParsedEnvironment, "EMBEDDING_MODEL"> & {
+  readonly EMBEDDING_MODEL?: typeof DEFAULT_EMBEDDING_MODEL;
+};
 
 export function loadEnvironment(
   source: NodeJS.ProcessEnv = process.env,
 ): Environment {
   const result = environmentSchema.safeParse(source);
-
   if (!result.success) {
     const issues = result.error.issues.map(
       (issue) => `${issue.path.join(".")}: ${issue.message}`,
@@ -53,11 +61,8 @@ export function loadEnvironment(
     throw new ApplicationError(
       "VALIDATION_ERROR",
       `Invalid API environment: ${issues.join("; ")}`,
-      {
-        details: { fields: issues },
-      },
+      { details: { fields: issues } },
     );
   }
-
   return result.data;
 }

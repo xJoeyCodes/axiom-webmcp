@@ -2,7 +2,7 @@ import type { RegistryUnitOfWork } from "@axiom/core";
 import { CapabilityService, ProviderService } from "@axiom/registry";
 
 import { createPublicationPlan } from "../diff/publication-diff.js";
-import type { PublicationResult } from "../types.js";
+import type { PublicationIndexer, PublicationResult } from "../types.js";
 import { validatePublication } from "../validate/publication-validator.js";
 import type { PublicationInspectionService } from "./publication-inspection-service.js";
 
@@ -10,13 +10,14 @@ export class PublicationService {
   constructor(
     private readonly inspection: PublicationInspectionService,
     private readonly unitOfWork: RegistryUnitOfWork,
+    private readonly indexer?: PublicationIndexer,
   ) {}
 
   async publish(input: unknown): Promise<PublicationResult> {
     const publication = this.inspection.normalize(input);
     const warnings = validatePublication(publication);
 
-    return this.unitOfWork.execute(async (repositories) => {
+    const committed = await this.unitOfWork.execute(async (repositories) => {
       const existingProvider = await repositories.providers.findByDomain(
         publication.provider.domain,
       );
@@ -71,7 +72,71 @@ export class PublicationService {
         );
       }
 
-      return { provider, plan, warnings };
+      const storedCapabilities = await repositories.capabilities.findByProvider(
+        provider.id,
+        "active",
+      );
+      const changedNames = new Set(
+        plan.capabilities
+          .filter(
+            (change) =>
+              change.action === "create" || change.action === "update",
+          )
+          .map((change) => change.name),
+      );
+      const indexIds = storedCapabilities
+        .filter(
+          (capability) =>
+            plan.providerAction === "update" ||
+            changedNames.has(capability.name),
+        )
+        .map((capability) => capability.id);
+      return { provider, plan, indexIds };
     });
+
+    const skippedUnchanged =
+      committed.plan.providerAction === "update"
+        ? 0
+        : committed.plan.summary.unchanged;
+    if (!this.indexer) {
+      return {
+        provider: committed.provider,
+        plan: committed.plan,
+        warnings,
+        indexing: {
+          ready: 0,
+          failed: 0,
+          unchanged: skippedUnchanged,
+          pending: committed.indexIds.length,
+        },
+      };
+    }
+
+    try {
+      const indexed = await this.indexer.indexCapabilities(committed.indexIds);
+      return {
+        provider: committed.provider,
+        plan: committed.plan,
+        warnings,
+        indexing: {
+          ready: indexed.ready,
+          failed: indexed.failed,
+          unchanged: indexed.unchanged + skippedUnchanged,
+          pending: 0,
+        },
+      };
+    } catch {
+      return {
+        provider: committed.provider,
+        plan: committed.plan,
+        warnings,
+        indexing: {
+          ready: 0,
+          failed: committed.indexIds.length,
+          unchanged: skippedUnchanged,
+          pending: 0,
+        },
+      };
+    }
   }
 }

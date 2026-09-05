@@ -5,6 +5,7 @@ import type {
 } from "@axiom/core";
 import {
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -13,6 +14,7 @@ import {
   uniqueIndex,
   uuid,
   varchar,
+  vector,
 } from "drizzle-orm/pg-core";
 
 export const providerVerificationStatusEnum = pgEnum(
@@ -39,6 +41,12 @@ export const capabilitySourceEnum = pgEnum("capability_source", [
   "manifest",
   "browser-inspection",
   "manual",
+]);
+
+export const embeddingStatusEnum = pgEnum("embedding_status", [
+  "pending",
+  "ready",
+  "failed",
 ]);
 
 export const providers = pgTable(
@@ -92,6 +100,20 @@ export const capabilities = pgTable(
     status: capabilityStatusEnum("status").notNull().default("active"),
     contentHash: varchar("content_hash", { length: 64 }).notNull(),
     rawContract: jsonb("raw_contract").$type<JsonValue | null>(),
+    embedding: vector("embedding", { dimensions: 1_024 }),
+    embeddingStatus: embeddingStatusEnum("embedding_status")
+      .notNull()
+      .default("pending"),
+    embeddingProvider: varchar("embedding_provider", { length: 80 }),
+    embeddingModel: varchar("embedding_model", { length: 120 }),
+    embeddingDimensions: integer("embedding_dimensions"),
+    embeddingVersion: varchar("embedding_version", { length: 80 }),
+    searchDocumentVersion: varchar("search_document_version", { length: 40 }),
+    embeddingFingerprint: varchar("embedding_fingerprint", { length: 64 }),
+    embeddingUpdatedAt: timestamp("embedding_updated_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
@@ -107,6 +129,10 @@ export const capabilities = pgTable(
     index("capabilities_provider_idx").on(table.providerId),
     index("capabilities_status_idx").on(table.status),
     index("capabilities_content_hash_idx").on(table.contentHash),
+    index("capabilities_embedding_status_idx").on(table.embeddingStatus),
+    index("capabilities_embedding_fingerprint_idx").on(
+      table.embeddingFingerprint,
+    ),
   ],
 );
 

@@ -7,6 +7,7 @@ const statusByCode: Record<ApplicationErrorCode, number> = {
   VALIDATION_ERROR: 400,
   NOT_FOUND: 404,
   CONFLICT: 409,
+  SERVICE_UNAVAILABLE: 503,
   INTERNAL_ERROR: 500,
 };
 
@@ -24,15 +25,15 @@ function hasClientErrorStatus(
 }
 
 export function registerErrorHandling(app: FastifyInstance): void {
-  app.setNotFoundHandler((request, reply) => {
-    return reply.status(404).send({
+  app.setNotFoundHandler((request, reply) =>
+    reply.status(404).send({
       error: {
         code: "NOT_FOUND",
         message: "Route not found.",
         requestId: request.id,
       },
-    });
-  });
+    }),
+  );
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
@@ -45,24 +46,23 @@ export function registerErrorHandling(app: FastifyInstance): void {
         },
       });
     }
-
     if (error instanceof ApplicationError) {
       const statusCode = statusByCode[error.code];
-      if (statusCode >= 500) {
+      if (error.code === "INTERNAL_ERROR") {
         request.log.error({ err: error }, "Application request failed");
       }
-
       return reply.status(statusCode).send({
         error: {
           code: error.code,
           message:
-            statusCode >= 500 ? "An unexpected error occurred." : error.message,
+            error.code === "INTERNAL_ERROR"
+              ? "An unexpected error occurred."
+              : error.message,
           requestId: request.id,
           ...(error.details ? { details: error.details } : {}),
         },
       });
     }
-
     if (hasClientErrorStatus(error)) {
       return reply.status(400).send({
         error: {
@@ -72,7 +72,6 @@ export function registerErrorHandling(app: FastifyInstance): void {
         },
       });
     }
-
     request.log.error({ err: error }, "Unhandled request error");
     return reply.status(500).send({
       error: {
