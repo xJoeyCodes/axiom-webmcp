@@ -185,3 +185,18 @@ The test checks cosine ordering, readiness/status filtering, capability invalida
 of superseded embedding writes. It creates a uniquely identified provider and removes only that
 fixture afterward. Without this environment variable it is explicitly skipped; normal tests use
 deterministic embeddings and do not measure real OpenAI retrieval accuracy.
+
+## Agent developer client
+
+`packages/client` provides the ESM `@axiom-webmcp/client` agent consumption SDK with discovery,
+provider lookup, and capability lookup. It uses shared runtime-validated contracts, native or
+injected fetch, bounded deadlines, and typed API/network errors. It does not execute WebMCP tools.
+
+```bash
+npm run build:client
+npm run test:client
+node examples/agent-discovery/index.mjs http://127.0.0.1:4000 "reserve dinner"
+```
+
+See `packages/client/README.md` for usage and packaging details. The package is not yet published;
+the client package is MIT licensed.
