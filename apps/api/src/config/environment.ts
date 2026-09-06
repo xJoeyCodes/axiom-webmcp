@@ -20,6 +20,7 @@ const environmentSchema = z.object({
     .trim()
     .transform((value) => value || undefined)
     .optional(),
+  EMBEDDING_PROVIDER: z.enum(["openai", "fake"]).default("openai"),
   EMBEDDING_MODEL: z
     .literal(DEFAULT_EMBEDDING_MODEL)
     .default(DEFAULT_EMBEDDING_MODEL),
@@ -46,8 +47,12 @@ const environmentSchema = z.object({
 });
 
 type ParsedEnvironment = z.infer<typeof environmentSchema>;
-export type Environment = Omit<ParsedEnvironment, "EMBEDDING_MODEL"> & {
+export type Environment = Omit<
+  ParsedEnvironment,
+  "EMBEDDING_MODEL" | "EMBEDDING_PROVIDER"
+> & {
   readonly EMBEDDING_MODEL?: typeof DEFAULT_EMBEDDING_MODEL;
+  readonly EMBEDDING_PROVIDER?: "openai" | "fake";
 };
 
 export function loadEnvironment(

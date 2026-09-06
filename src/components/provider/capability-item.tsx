@@ -55,7 +55,7 @@ export function CapabilityItem({ capability, index }: CapabilityItemProps) {
         <p className="text-muted flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[9px] tracking-[0.08em] uppercase lg:pt-1">
           {capability.metadata.category}
           <span aria-hidden="true">·</span>
-          {capability.metadata.destructive ? "Writes data" : "Read only"}
+          {capability.metadata.sideEffecting ? "Writes data" : "Read only"}
         </p>
 
         <button

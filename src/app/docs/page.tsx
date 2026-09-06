@@ -21,9 +21,9 @@ const manifestExample = `{
   }
 }`;
 
-const workflowCommands = `npx axiom inspect https://yourwebsite.com
-npx axiom publish https://yourwebsite.com
-npx axiom search "find available inventory"`;
+const workflowCommands = `axiom inspect
+axiom publish --yes
+axiom search "find available inventory"`;
 
 const sdkExample = `const results = await axiom.discover({
   intent: "find available inventory",
@@ -34,7 +34,7 @@ export default function DocsPage() {
     <PageContainer>
       <div className="pt-16 pb-20 sm:pt-20 sm:pb-24 lg:pt-24 lg:pb-32">
         <header className="border-border border-b pb-12 sm:pb-16">
-          <TechnicalLabel>Documentation / Preview</TechnicalLabel>
+          <TechnicalLabel>Documentation</TechnicalLabel>
           <h1 className="text-foreground mt-5 text-4xl font-normal tracking-[-0.04em] sm:text-5xl">
             Axiom documentation.
           </h1>
@@ -94,9 +94,10 @@ export default function DocsPage() {
                 Inspect before indexing.
               </h2>
               <p className="text-secondary mt-4 text-sm leading-7">
-                The current frontend demonstrates inspection, schema review, and
-                publishing with deterministic mock responses. It does not crawl
-                websites or write to a production registry.
+                The publish workflow sends a supplied Axiom manifest through the
+                real inspection, diff, and registry pipeline. It treats
+                contracts as data and does not crawl or execute provider
+                websites.
               </p>
               <Link
                 href="/publish"
@@ -119,9 +120,9 @@ export default function DocsPage() {
               </h2>
               <p className="text-secondary mt-4 text-sm leading-7">
                 Discovery queries return providers, matched capabilities, and a
-                deterministic relevance score. The current implementation uses a
-                transparent local keyword model rather than embeddings or an
-                LLM.
+                relevance score from the backend semantic index. PostgreSQL and
+                pgvector handle retrieval; Axiom does not use an LLM to rewrite
+                the intent.
               </p>
             </section>
 

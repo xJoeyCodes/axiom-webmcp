@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { CapabilityList } from "@/components/provider/capability-list";
@@ -12,11 +13,15 @@ interface ProviderPageProps {
   params: Promise<{ slug: string }>;
 }
 
+const loadProvider = cache((slug: string) =>
+  getAxiomClient().getProvider(slug),
+);
+
 export async function generateMetadata({
   params,
 }: ProviderPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const provider = await getAxiomClient().getProvider(slug);
+  const provider = await loadProvider(slug);
 
   return provider
     ? {
@@ -28,7 +33,7 @@ export async function generateMetadata({
 
 export default async function ProviderPage({ params }: ProviderPageProps) {
   const { slug } = await params;
-  const provider = await getAxiomClient().getProvider(slug);
+  const provider = await loadProvider(slug);
 
   if (!provider) {
     notFound();

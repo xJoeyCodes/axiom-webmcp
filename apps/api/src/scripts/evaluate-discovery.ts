@@ -1,23 +1,18 @@
 import "dotenv/config";
 
 import { createDatabase, DrizzleCapabilityIndexRepository } from "@axiom/db";
-import {
-  DiscoveryService,
-  evaluateDiscovery,
-  OpenAIEmbeddingProvider,
-} from "@axiom/discovery";
+import { DiscoveryService, evaluateDiscovery } from "@axiom/discovery";
 
+import { createEmbeddingProvider } from "../config/embedding-provider.js";
 import { loadEnvironment } from "../config/environment.js";
 
 async function evaluate(): Promise<void> {
   const environment = loadEnvironment();
   const database = createDatabase(environment.DATABASE_URL);
   try {
+    const embeddings = createEmbeddingProvider(environment);
     const service = new DiscoveryService(
-      new OpenAIEmbeddingProvider({
-        apiKey: environment.OPENAI_API_KEY,
-        model: environment.EMBEDDING_MODEL,
-      }),
+      embeddings,
       new DrizzleCapabilityIndexRepository(database.db),
     );
     const summary = await evaluateDiscovery(async (intent) => {
@@ -26,7 +21,7 @@ async function evaluate(): Promise<void> {
     });
     process.stdout.write(
       [
-        "Discovery Evaluation",
+        `Discovery Evaluation (${embeddings.provider})`,
         `Queries: ${summary.queries}`,
         `Top-1 provider: ${summary.top1Provider}/${summary.queries}`,
         `Top-3 provider: ${summary.top3Provider}/${summary.queries}`,

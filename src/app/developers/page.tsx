@@ -20,39 +20,41 @@ const developerSteps = [
     number: "01",
     title: "Install",
     description:
-      "Add the planned SDK to an application or use the CLI directly during development.",
-    label: "Terminal / preview",
+      "Use the agent client for discovery, or the publishing SDK and CLI for website capability contracts.",
+    label: "Terminal",
     code: "npm install @axiom-webmcp/sdk\nnpm install -g @axiom-webmcp/cli",
   },
   {
     number: "02",
     title: "Inspect",
     description:
-      "Validate the public WebMCP surface before submitting it to a registry.",
-    label: "Terminal / preview",
-    code: "npx axiom inspect https://yourwebsite.com",
+      "Validate axiom.json locally, then preview the backend publication plan.",
+    label: "Terminal",
+    code: "axiom inspect",
   },
   {
     number: "03",
     title: "Publish",
     description:
       "Submit validated capability metadata so agents can discover the website by intent.",
-    label: "Terminal / preview",
-    code: "npx axiom publish https://yourwebsite.com",
+    label: "Terminal",
+    code: "axiom publish --yes",
   },
   {
     number: "04",
     title: "Discover",
     description:
       "Query the shared capability index without coupling discovery to one agent framework.",
-    label: "Terminal / preview",
-    code: 'npx axiom search "book a restaurant"',
+    label: "Terminal",
+    code: 'axiom search "book a restaurant"',
   },
 ] as const;
 
-const sdkExample = `import { Axiom } from "@axiom-webmcp/sdk";
+const sdkExample = `import { Axiom } from "@axiom-webmcp/client";
 
-const axiom = new Axiom();
+const axiom = new Axiom({
+  baseUrl: "http://127.0.0.1:4000",
+});
 
 const results = await axiom.discover({
   intent: "book a restaurant",
@@ -141,16 +143,17 @@ export default function DevelopersPage() {
 
         <section className="grid gap-10 py-16 sm:py-20 lg:grid-cols-[minmax(0,0.75fr)_minmax(24rem,1fr)] lg:gap-16">
           <div>
-            <TechnicalLabel>SDK / Concept</TechnicalLabel>
+            <TechnicalLabel>Agent client</TechnicalLabel>
             <h2 className="text-foreground mt-4 text-3xl font-normal tracking-[-0.035em]">
               Discover from TypeScript.
             </h2>
             <p className="text-secondary mt-5 max-w-lg text-sm leading-7">
-              The SDK interface shown here is a preview of the planned developer
-              experience; this phase does not publish an npm package.
+              The repository ships a typed, publish-ready agent client that
+              calls the same discovery engine used by the web and CLI surfaces.
+              WebMCP execution remains on the provider website.
             </p>
           </div>
-          <CodeBlock code={sdkExample} label="discover.ts / preview" />
+          <CodeBlock code={sdkExample} label="discover.ts" />
         </section>
 
         <section className="border-border border-y py-14 sm:py-16">

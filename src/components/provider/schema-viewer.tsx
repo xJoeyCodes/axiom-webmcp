@@ -8,7 +8,7 @@ interface SchemaViewerProps {
 }
 
 export function SchemaViewer({ capability }: SchemaViewerProps) {
-  const behavior = capability.metadata.destructive
+  const behavior = capability.metadata.sideEffecting
     ? "Changes external state"
     : "Read only";
   const confirmation = capability.metadata.requiresConfirmation
@@ -50,7 +50,9 @@ export function SchemaViewer({ capability }: SchemaViewerProps) {
               ))}
             </ul>
           ) : (
-            <p className="text-muted mt-4 text-xs">No input required.</p>
+            <p className="text-muted mt-4 text-xs">
+              No structured input required.
+            </p>
           )}
         </section>
 
@@ -111,7 +113,7 @@ export function SchemaViewer({ capability }: SchemaViewerProps) {
           </div>
         </dl>
 
-        {capability.metadata.destructive ? (
+        {capability.metadata.sideEffecting ? (
           <p className="border-border-strong text-secondary mt-7 border-l pl-4 text-xs leading-5">
             Action changes external state
             {capability.metadata.requiresConfirmation

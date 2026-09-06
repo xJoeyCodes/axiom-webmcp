@@ -168,7 +168,7 @@ function providerConcepts(provider: Provider): {
   return {
     description: documentConcepts(provider.description),
     identity: documentConcepts(`${provider.name} ${provider.domain}`),
-    industry: documentConcepts(provider.metadata.industry),
+    industry: documentConcepts(provider.metadata.industry ?? ""),
   };
 }
 

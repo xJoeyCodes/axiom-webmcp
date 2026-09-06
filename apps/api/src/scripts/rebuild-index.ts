@@ -6,21 +6,16 @@ import {
   DrizzleCapabilityRepository,
   DrizzleProviderRepository,
 } from "@axiom/db";
-import {
-  CapabilityIndexingService,
-  OpenAIEmbeddingProvider,
-} from "@axiom/discovery";
+import { CapabilityIndexingService } from "@axiom/discovery";
 
+import { createEmbeddingProvider } from "../config/embedding-provider.js";
 import { loadEnvironment } from "../config/environment.js";
 
 async function rebuild(): Promise<void> {
   const environment = loadEnvironment();
   const database = createDatabase(environment.DATABASE_URL);
   try {
-    const embeddings = new OpenAIEmbeddingProvider({
-      apiKey: environment.OPENAI_API_KEY,
-      model: environment.EMBEDDING_MODEL,
-    });
+    const embeddings = createEmbeddingProvider(environment);
     const service = new CapabilityIndexingService(
       new DrizzleProviderRepository(database.db),
       new DrizzleCapabilityRepository(database.db),
@@ -29,7 +24,7 @@ async function rebuild(): Promise<void> {
     );
     const result = await service.rebuild();
     process.stdout.write(
-      `Index rebuild complete: ${result.ready} ready, ${result.unchanged} unchanged, ${result.failed} failed.\n`,
+      `Index rebuild (${embeddings.provider}) complete: ${result.ready} ready, ${result.unchanged} unchanged, ${result.failed} failed.\n`,
     );
     if (result.failed > 0) process.exitCode = 1;
   } finally {

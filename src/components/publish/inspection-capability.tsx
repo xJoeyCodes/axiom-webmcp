@@ -5,22 +5,23 @@ import { Check, Plus, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import { SchemaViewer } from "@/components/provider/schema-viewer";
-import type { Capability } from "@/lib/types/axiom";
+import type { InspectedCapability } from "@/lib/types/axiom";
 
 interface InspectionCapabilityProps {
-  capability: Capability;
+  item: InspectedCapability;
   index: number;
 }
 
 export function InspectionCapability({
-  capability,
+  item,
   index,
 }: InspectionCapabilityProps) {
+  const { capability, action } = item;
   const [expanded, setExpanded] = useState(false);
   const reduceMotion = useReducedMotion();
   const panelId = `inspection-${capability.id}-schema`;
   const headingId = `inspection-${capability.id}-title`;
-  const warning = capability.metadata.destructive;
+  const changesState = capability.metadata.sideEffecting;
 
   return (
     <article className="border-border border-b">
@@ -37,12 +38,12 @@ export function InspectionCapability({
               {capability.name}
             </h3>
             <span className="text-muted inline-flex items-center gap-1.5 font-mono text-[9px] tracking-[0.08em] uppercase">
-              {warning ? (
+              {changesState ? (
                 <TriangleAlert aria-hidden size={11} strokeWidth={1.5} />
               ) : (
                 <Check aria-hidden size={11} strokeWidth={1.7} />
               )}
-              {warning ? "Valid · review action" : "Valid"}
+              {action} {changesState ? "· changes state" : "· valid"}
             </span>
           </div>
           <p className="text-muted mt-2 max-w-2xl text-xs leading-5">

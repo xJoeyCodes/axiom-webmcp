@@ -7,11 +7,13 @@
     "packages/*"
   ],
   "scripts": {
+    "predev": "npm run build:client && npm run build:sdk",
     "dev": "next dev",
+    "predev:web": "npm run build:client && npm run build:sdk",
     "dev:web": "next dev",
     "dev:api": "npm run dev --workspace @axiom/api",
-    "build": "next build",
-    "build:web": "next build",
+    "build": "npm run build:web",
+    "build:web": "npm run build:client && npm run build:sdk && next build",
     "build:packages": "npm run build --workspace @axiom/core && npm run build --workspace @axiom/contracts && npm run build --workspace @axiom/registry && npm run build --workspace @axiom/ingestion && npm run build --workspace @axiom/discovery && npm run build --workspace @axiom/db && npm run build:client && npm run build:sdk && npm run build:cli",
     "build:api": "npm run build:packages && npm run build --workspace @axiom/api",
     "build:all": "npm run build:web && npm run build:api",
@@ -19,6 +21,8 @@
     "start:api": "npm run start --workspace @axiom/api",
     "index:rebuild": "npm run index:rebuild --workspace @axiom/api",
     "eval:discovery": "npm run eval:discovery --workspace @axiom/api",
+    "demo:setup": "npm run db:migrate && npm run db:seed && npm run index:rebuild",
+    "demo:reset": "npm run build:packages && npm run demo:clear --workspace @axiom/db && npm run demo:setup",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && npm run typecheck --workspace @axiom/core && npm run typecheck --workspace @axiom/contracts && npm run typecheck --workspace @axiom/registry && npm run typecheck --workspace @axiom/ingestion && npm run typecheck --workspace @axiom/discovery && npm run typecheck --workspace @axiom/db && npm run typecheck --workspace @axiom/api && npm run typecheck --workspace @axiom-webmcp/client && npm run typecheck --workspace @axiom-webmcp/sdk && npm run typecheck --workspace @axiom-webmcp/cli",
     "test": "npm run build:packages && vitest run",
@@ -36,6 +40,8 @@
     "test:cli": "npm run test --workspace @axiom-webmcp/cli"
   },
   "dependencies": {
+    "@axiom-webmcp/client": "0.1.0",
+    "@axiom-webmcp/sdk": "0.1.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "lucide-react": "^1.39.0",

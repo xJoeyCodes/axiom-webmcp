@@ -1,32 +1,21 @@
 import type { Provider } from "@/lib/types/axiom";
 
-const mockProviderDestinations: Record<string, string> = {
-  "atlas-dining": "https://example.com",
-  "orbit-travel": "https://example.com",
-  "pulse-events": "https://example.com",
-};
-
-function safeHttpsUrl(value: string): string | null {
+function safeProviderUrl(value: string): string | null {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" ? url.toString() : null;
+    const localHttp =
+      url.protocol === "http:" &&
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+    if (url.protocol !== "https:" && !localHttp) return null;
+    if (url.hostname.endsWith(".example")) return null;
+    return url.toString();
   } catch {
     return null;
   }
 }
 
 export function getProviderVisitUrl(
-  provider: Pick<Provider, "domain" | "slug">,
+  provider: Pick<Provider, "canonicalUrl" | "domain">,
 ): string | null {
-  const mockDestination = mockProviderDestinations[provider.slug];
-
-  if (mockDestination) {
-    return safeHttpsUrl(mockDestination);
-  }
-
-  if (provider.domain.endsWith(".example")) {
-    return null;
-  }
-
-  return safeHttpsUrl(`https://${provider.domain}`);
+  return safeProviderUrl(provider.canonicalUrl ?? `https://${provider.domain}`);
 }

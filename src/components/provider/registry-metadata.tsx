@@ -11,13 +11,20 @@ interface RegistryMetadataProps {
 }
 
 export function RegistryMetadata({ provider }: RegistryMetadataProps) {
-  const fields = [
+  const fields: Array<{ label: string; value: string }> = [
     { label: "Last indexed", value: formatIndexedDate(provider.lastIndexed) },
-    { label: "WebMCP status", value: "Detected" },
-    { label: "Industry", value: provider.metadata.industry },
-    { label: "Location", value: provider.metadata.location ?? "Not specified" },
+    {
+      label: "WebMCP status",
+      value: provider.lastIndexed ? "Indexed" : "Registered",
+    },
     { label: "Capabilities", value: String(provider.capabilities.length) },
   ];
+  if (provider.metadata.industry) {
+    fields.push({ label: "Industry", value: provider.metadata.industry });
+  }
+  if (provider.metadata.location) {
+    fields.push({ label: "Location", value: provider.metadata.location });
+  }
 
   return (
     <section

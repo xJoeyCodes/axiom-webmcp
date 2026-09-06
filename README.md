@@ -1,7 +1,6 @@
 # Axiom
 
-Axiom is the open discovery layer for WebMCP. The frontend demonstrates discovery, provider
-inspection, and publishing behind a typed client boundary. The backend provides a real registry,
+Axiom is the open discovery layer for WebMCP. The frontend consumes the real discovery, registry, inspection, and publication APIs through a typed HttpAxiomClient boundary. The backend provides a real registry,
 transactional publication pipeline, and semantic capability discovery through PostgreSQL/pgvector.
 
 ## Repository structure
@@ -32,34 +31,59 @@ Drizzle, PostgreSQL, Next.js, browser APIs, or an embedding SDK. The OpenAI adap
 
 Copy `.env.example` to `.env`. Do not commit `.env`.
 
-| Variable          | Purpose                                            | Default/example                                 |
-| ----------------- | -------------------------------------------------- | ----------------------------------------------- |
-| `DATABASE_URL`    | API, migration, and indexing PostgreSQL connection | `postgresql://axiom:axiom@localhost:5432/axiom` |
-| `OPENAI_API_KEY`  | Required when indexing or discovering              | No default                                      |
-| `EMBEDDING_MODEL` | Schema-compatible embedding model                  | `text-embedding-3-small`                        |
-| `API_HOST`        | API bind address                                   | `127.0.0.1`                                     |
-| `PORT`            | API port                                           | `4000`                                          |
-| `LOG_LEVEL`       | Fastify/Pino log level                             | `info`                                          |
-| `CORS_ORIGINS`    | Comma-separated allowed browser origins            | `http://localhost:3000`                         |
+| Variable                      | Purpose                                            | Default/example                                 |
+| ----------------------------- | -------------------------------------------------- | ----------------------------------------------- |
+| `NEXT_PUBLIC_AXIOM_DATA_MODE` | Frontend data source (`http` or explicit `mock`)   | `http`                                          |
+| `NEXT_PUBLIC_AXIOM_API_URL`   | Public API origin used by the frontend             | `http://127.0.0.1:4000`                         |
+| `DATABASE_URL`                | API, migration, and indexing PostgreSQL connection | `postgresql://axiom:axiom@localhost:5432/axiom` |
+| `EMBEDDING_PROVIDER`          | Explicit semantic provider (`openai` or `fake`)    | `openai`                                        |
+| `OPENAI_API_KEY`              | Required when `EMBEDDING_PROVIDER=openai`          | No default                                      |
+| `EMBEDDING_MODEL`             | Schema-compatible embedding model                  | `text-embedding-3-small`                        |
+| `API_HOST`                    | API bind address                                   | `127.0.0.1`                                     |
+| `PORT`                        | API port                                           | `4000`                                          |
+| `LOG_LEVEL`                   | Fastify/Pino log level                             | `info`                                          |
+| `CORS_ORIGINS`                | Comma-separated allowed browser origins            | `http://localhost:3000`                         |
 
-The API can start without `OPENAI_API_KEY`; registry and inspection routes remain usable. Publish
-will commit registry changes and report failed indexing, while discovery returns a controlled 503
-until credentials are configured. `EMBEDDING_MODEL` is deliberately restricted to
+With `EMBEDDING_PROVIDER=openai`, the API can start without `OPENAI_API_KEY`; registry and inspection remain usable, publication reports failed indexing, and discovery returns a controlled 503. For an offline demo, set `EMBEDDING_PROVIDER=fake` explicitly. The API logs a warning and uses deterministic 1024-dimensional fixtures; it never silently falls back. `EMBEDDING_MODEL` is deliberately restricted to
 `text-embedding-3-small`: the database schema fixes vectors at 1024 dimensions.
 
 ## Local development
 
 ```bash
+npm install
 docker compose up -d postgres
-npm run db:migrate
-npm run db:seed
-npm run index:rebuild
-npm run dev:api
+npm run demo:setup
 ```
 
-The idempotent seed registers Atlas Dining, Orbit Travel, Pulse Events, and nine capabilities.
-Northstar Commerce is available as the publication fixture in `packages/ingestion` and can be sent
-through `/v1/publish`. Seed records begin pending and become discoverable after indexing.
+`demo:setup` migrates the database, seeds Atlas Dining, Orbit Travel, and Pulse Events, then indexes them. It deliberately leaves Northstar Commerce unpublished for the live publication demo. `demo:reset` removes only the four known demo-provider slugs before rebuilding this state.
+
+Start the API and web application in separate terminals:
+
+```bash
+npm run dev:api
+npm run dev:web
+```
+
+The web app defaults to `NEXT_PUBLIC_AXIOM_DATA_MODE=http`. Set it to `mock` only for explicit offline frontend work; HTTP failures never fall back to mock data.
+
+## End-to-end architecture
+
+```text
+Website Developer
+      |
+  CLI / SDK
+      v
+Publication API -> Registry -> Semantic Index
+                              ^
+                              |
+                       Discovery API
+                              ^
+                        Agent Client
+                              |
+                       Agent Developer
+```
+
+A WebMCP tool is normalized into an Axiom capability. Axiom discovers capabilities and returns provider contracts; WebMCP executes them on the provider website.
 
 ## HTTP API
 
@@ -171,8 +195,7 @@ npm test
 npm run build:all
 ```
 
-Checked-in Drizzle SQL migrations are the production deployment mechanism. The frontend still uses
-`MockAxiomClient`; HTTP wiring is deferred. Live WebMCP inspection, agent execution,
+Checked-in Drizzle SQL migrations are the production deployment mechanism. The frontend defaults to HttpAxiomClient and composes the read client with the publishing SDK behind explicit transport-to-UI mappers. MockAxiomClient remains available only through explicit mock data mode. Live WebMCP inspection, agent execution,
 authentication, ownership verification, LLM rewriting, queues, and external vector databases
 remain outside this phase.
 

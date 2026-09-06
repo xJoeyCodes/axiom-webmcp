@@ -7,11 +7,7 @@ import {
   DrizzleProviderRepository,
   DrizzleRegistryUnitOfWork,
 } from "@axiom/db";
-import {
-  CapabilityIndexingService,
-  DiscoveryService,
-  OpenAIEmbeddingProvider,
-} from "@axiom/discovery";
+import { CapabilityIndexingService, DiscoveryService } from "@axiom/discovery";
 import {
   ApiContractAdapter,
   ManifestAdapter,
@@ -21,6 +17,7 @@ import {
 import { CapabilityService, ProviderService } from "@axiom/registry";
 
 import { createApp } from "./app.js";
+import { createEmbeddingProvider } from "./config/embedding-provider.js";
 import { loadEnvironment } from "./config/environment.js";
 
 async function start(): Promise<void> {
@@ -29,10 +26,7 @@ async function start(): Promise<void> {
   const providerRepository = new DrizzleProviderRepository(database.db);
   const capabilityRepository = new DrizzleCapabilityRepository(database.db);
   const indexRepository = new DrizzleCapabilityIndexRepository(database.db);
-  const embeddingProvider = new OpenAIEmbeddingProvider({
-    apiKey: environment.OPENAI_API_KEY,
-    model: environment.EMBEDDING_MODEL,
-  });
+  const embeddingProvider = createEmbeddingProvider(environment);
   const indexingService = new CapabilityIndexingService(
     providerRepository,
     capabilityRepository,
@@ -59,6 +53,13 @@ async function start(): Promise<void> {
     discoveryService: new DiscoveryService(embeddingProvider, indexRepository),
   };
   const app = await createApp({ environment, registry });
+
+  if (embeddingProvider.provider === "fake") {
+    app.log.warn(
+      { embeddingProvider: embeddingProvider.provider },
+      "Deterministic fake embeddings are active; use only for development or demos",
+    );
+  }
 
   app.addHook("onClose", async () => {
     await database.client.end({ timeout: 5 });
