@@ -66,6 +66,12 @@ npm run dev:web
 
 The web app defaults to `NEXT_PUBLIC_AXIOM_DATA_MODE=http`. Set it to `mock` only for explicit offline frontend work; HTTP failures never fall back to mock data.
 
+## Demo
+
+Run `npm run db:migrate` followed by `npm run demo:reset`, start the API and web app, then search for `reserve dinner`. The complete
+two-to-three-minute judge walkthrough—including Northstar publication, CLI and agent-client checks,
+and the experimental Atlas Dining WebMCP proof—is in [`DEMO.md`](./DEMO.md).
+
 ## End-to-end architecture
 
 ```text
