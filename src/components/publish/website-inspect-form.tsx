@@ -4,74 +4,78 @@ import { ArrowRight } from "lucide-react";
 import type { FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { normalizeWebsiteUrl } from "@/lib/utils/url";
 
-interface WebsiteInspectFormProps {
+interface ManifestInspectFormProps {
   disabled?: boolean;
+  error?: string;
   onChange: (value: string) => void;
+  onLoadExample: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   value: string;
 }
 
-export function WebsiteInspectForm({
+export function ManifestInspectForm({
   disabled = false,
+  error,
   onChange,
+  onLoadExample,
   onSubmit,
   value,
-}: WebsiteInspectFormProps) {
-  const invalid = value.length > 0 && !normalizeWebsiteUrl(value);
-  const canSubmit = Boolean(normalizeWebsiteUrl(value)) && !disabled;
-  const describedBy = invalid
-    ? "website-url-error website-url-help"
-    : "website-url-help";
-
+}: ManifestInspectFormProps) {
   return (
-    <form onSubmit={onSubmit} noValidate className="max-w-4xl">
-      <label htmlFor="website-url" className="text-secondary block text-sm">
-        Website
-      </label>
-      <div className="relative mt-3">
-        <Input
-          id="website-url"
-          name="url"
-          type="url"
-          inputMode="url"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          required
-          disabled={disabled}
-          aria-invalid={invalid}
-          aria-describedby={describedBy}
-          placeholder="https://northstar.example"
-          autoComplete="url"
-          className="h-14 pr-32 sm:h-16 sm:pr-36 sm:text-base"
-        />
+    <form onSubmit={onSubmit} noValidate className="max-w-5xl">
+      <div className="flex items-center justify-between gap-4">
+        <label htmlFor="axiom-manifest" className="text-secondary text-sm">
+          Axiom manifest
+        </label>
         <Button
-          type="submit"
-          disabled={!canSubmit}
-          className="absolute top-1/2 right-2 -translate-y-1/2 sm:right-2.5"
+          type="button"
+          variant="quiet"
+          onClick={onLoadExample}
+          disabled={disabled}
+          className="min-h-10 px-0"
         >
-          {disabled ? "Inspecting" : "Inspect"}
-          <ArrowRight aria-hidden size={14} strokeWidth={1.6} />
+          Load example
         </Button>
       </div>
-      <div className="mt-3 min-h-5">
-        {invalid ? (
+      <textarea
+        id="axiom-manifest"
+        name="manifest"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+        disabled={disabled}
+        aria-invalid={Boolean(error)}
+        aria-describedby="axiom-manifest-help axiom-manifest-error"
+        spellCheck={false}
+        placeholder={
+          '{\n  "version": "1",\n  "provider": { ... },\n  "capabilities": [ ... ]\n}'
+        }
+        className="border-border bg-elevated text-foreground placeholder:text-muted focus-visible:border-border-strong focus-visible:ring-foreground/70 mt-3 min-h-80 w-full resize-y rounded-sm border px-4 py-4 font-mono text-xs leading-6 transition-[border-color,box-shadow] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090A0C] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-96 sm:px-5"
+      />
+      <div className="mt-3 flex min-h-10 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          {error ? (
+            <p
+              id="axiom-manifest-error"
+              className="text-secondary text-xs leading-5"
+              role="alert"
+            >
+              {error}
+            </p>
+          ) : null}
           <p
-            id="website-url-error"
-            className="text-secondary text-xs"
-            role="alert"
+            id="axiom-manifest-help"
+            className={`text-muted text-xs leading-5 ${error ? "sr-only" : ""}`}
           >
-            Enter an absolute HTTP or HTTPS URL.
+            Axiom validates this JSON as data. It does not visit or execute the
+            provider website.
           </p>
-        ) : null}
-        <p
-          id="website-url-help"
-          className={`text-muted text-xs leading-5 ${invalid ? "sr-only" : ""}`}
-        >
-          Try https://northstar.example for the deterministic WebMCP demo.
-        </p>
+        </div>
+        <Button type="submit" disabled={!value.trim() || disabled}>
+          {disabled ? "Inspecting" : "Inspect manifest"}
+          <ArrowRight aria-hidden size={14} strokeWidth={1.6} />
+        </Button>
       </div>
     </form>
   );

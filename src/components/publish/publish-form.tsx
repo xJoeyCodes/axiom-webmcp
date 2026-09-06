@@ -9,11 +9,17 @@ import {
 } from "@/components/publish/inspection-progress";
 import { PublishReview } from "@/components/publish/publish-review";
 import { PublishSuccess } from "@/components/publish/publish-success";
-import { WebsiteInspectForm } from "@/components/publish/website-inspect-form";
+import { ManifestInspectForm } from "@/components/publish/website-inspect-form";
 import { Button } from "@/components/ui/button";
 import { getAxiomClient } from "@/lib/api/client";
-import type { InspectionResult, PublishResult } from "@/lib/types/axiom";
-import { normalizeWebsiteUrl } from "@/lib/utils/url";
+import { formatFrontendError } from "@/lib/api/errors";
+import { northstarManifestJson } from "@/lib/demo/northstar-manifest";
+import type {
+  AxiomManifest,
+  ManifestInspectionResult,
+  ManifestPublishResult,
+} from "@/lib/types/axiom";
+import { parseManifestJson } from "@/lib/utils/manifest";
 
 type PublishStage =
   "idle" | "inspecting" | "review" | "publishing" | "success" | "error";
@@ -24,16 +30,17 @@ function wait(milliseconds: number): Promise<void> {
 
 export function PublishForm() {
   const [stage, setStage] = useState<PublishStage>("idle");
-  const [url, setUrl] = useState("https://northstar.example");
-  const [normalizedUrl, setNormalizedUrl] = useState("");
+  const [manifestText, setManifestText] = useState("");
+  const [manifest, setManifest] = useState<AxiomManifest | null>(null);
   const [activeStep, setActiveStep] = useState(0);
-  const [inspection, setInspection] = useState<InspectionResult | null>(null);
-  const [publishResult, setPublishResult] = useState<PublishResult | null>(
+  const [inspection, setInspection] = useState<ManifestInspectionResult | null>(
     null,
   );
+  const [publishResult, setPublishResult] =
+    useState<ManifestPublishResult | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
-  function reset() {
+  function editManifest() {
     setStage("idle");
     setInspection(null);
     setPublishResult(null);
@@ -41,79 +48,58 @@ export function PublishForm() {
     setActiveStep(0);
   }
 
+  function reset() {
+    setManifestText("");
+    setManifest(null);
+    editManifest();
+  }
+
   async function inspect(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextUrl = normalizeWebsiteUrl(url);
-    if (!nextUrl) return;
+    const parsed = parseManifestJson(manifestText);
+    if (!parsed.success) {
+      setErrorMessage(parsed.message);
+      setStage("idle");
+      return;
+    }
 
-    setNormalizedUrl(nextUrl);
+    setManifest(parsed.manifest);
     setInspection(null);
     setErrorMessage("");
     setActiveStep(0);
     setStage("inspecting");
 
     try {
-      const inspectionPromise = getAxiomClient().inspect(nextUrl);
-
+      const inspectionPromise = getAxiomClient().inspect(parsed.manifest);
       for (let index = 0; index < inspectionSteps.length; index += 1) {
         setActiveStep(index);
-        await wait(120);
+        await wait(90);
       }
-
       const response = await inspectionPromise;
       setActiveStep(inspectionSteps.length);
-      await wait(80);
-
-      if (
-        response.status !== "detected" ||
-        response.capabilities.length === 0
-      ) {
-        setErrorMessage(
-          response.warnings[0] ?? "No WebMCP capabilities were detected.",
-        );
-        setStage("error");
-        return;
-      }
-
       setInspection(response);
       setStage("review");
-    } catch {
-      setErrorMessage("We couldn't inspect this website. Try again.");
+    } catch (error) {
+      setErrorMessage(formatFrontendError(error));
       setStage("error");
     }
   }
 
   async function publish() {
-    if (!inspection) return;
+    if (!manifest || stage === "publishing") return;
 
     setStage("publishing");
     try {
-      const response = await getAxiomClient().publish({
-        url: inspection.url,
-      });
-
-      if (response.status === "rejected") {
-        setErrorMessage(response.message);
-        setStage("error");
-        return;
-      }
-
-      setPublishResult(response);
+      setPublishResult(await getAxiomClient().publish(manifest));
       setStage("success");
-    } catch {
-      setErrorMessage("We couldn't publish this website. Try again.");
+    } catch (error) {
+      setErrorMessage(formatFrontendError(error));
       setStage("error");
     }
   }
 
   if (stage === "success" && publishResult) {
-    return (
-      <PublishSuccess
-        result={publishResult}
-        url={normalizedUrl}
-        onReset={reset}
-      />
-    );
+    return <PublishSuccess result={publishResult} onReset={reset} />;
   }
 
   if ((stage === "review" || stage === "publishing") && inspection) {
@@ -122,25 +108,35 @@ export function PublishForm() {
         inspection={inspection}
         publishing={stage === "publishing"}
         onPublish={publish}
-        onReset={reset}
+        onReset={editManifest}
       />
     );
   }
 
   return (
     <div>
-      <WebsiteInspectForm
-        value={url}
+      <ManifestInspectForm
+        value={manifestText}
+        error={stage === "idle" ? errorMessage : undefined}
+        onLoadExample={() => {
+          setManifestText(northstarManifestJson);
+          setErrorMessage("");
+          setStage("idle");
+        }}
         onChange={(value) => {
-          setUrl(value);
+          setManifestText(value);
           if (stage === "error") setStage("idle");
+          setErrorMessage("");
         }}
         onSubmit={inspect}
         disabled={stage === "inspecting"}
       />
 
-      {stage === "inspecting" ? (
-        <InspectionProgress url={normalizedUrl} activeStep={activeStep} />
+      {stage === "inspecting" && manifest ? (
+        <InspectionProgress
+          providerDomain={manifest.provider.domain}
+          activeStep={activeStep}
+        />
       ) : null}
 
       {stage === "error" ? (
@@ -149,13 +145,13 @@ export function PublishForm() {
           aria-labelledby="inspection-error-title"
         >
           <p className="text-muted font-mono text-[10px] tracking-[0.12em] uppercase">
-            Inspection stopped
+            Request stopped
           </p>
           <h2
             id="inspection-error-title"
             className="text-foreground mt-4 text-2xl font-normal tracking-[-0.03em]"
           >
-            No publishable WebMCP surface.
+            Axiom could not prepare this publication.
           </h2>
           <p
             className="text-secondary mt-3 max-w-lg text-sm leading-6"
@@ -163,8 +159,8 @@ export function PublishForm() {
           >
             {errorMessage}
           </p>
-          <Button variant="secondary" onClick={reset} className="mt-6">
-            Try again
+          <Button variant="secondary" onClick={editManifest} className="mt-6">
+            Edit manifest
           </Button>
         </section>
       ) : null}

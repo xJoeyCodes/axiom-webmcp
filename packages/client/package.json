@@ -1,0 +1,36 @@
+{
+  "name": "@axiom-webmcp/client",
+  "version": "0.1.0",
+  "description": "Typed, framework-neutral capability discovery for Axiom agents.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/client/src/index.js",
+  "types": "./dist/client/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/client/src/index.d.ts",
+      "import": "./dist/client/src/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run src/axiom.test.ts",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

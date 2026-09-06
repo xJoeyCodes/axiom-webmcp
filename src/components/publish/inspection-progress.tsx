@@ -1,22 +1,21 @@
 import { Check, Circle, LoaderCircle } from "lucide-react";
 
 export const inspectionSteps = [
-  "Connecting",
-  "Detecting WebMCP",
-  "Reading capabilities",
-  "Validating schemas",
+  "Reading manifest",
+  "Validating capabilities",
+  "Comparing registry",
+  "Preparing publication",
 ] as const;
 
 interface InspectionProgressProps {
   activeStep: number;
-  url: string;
+  providerDomain: string;
 }
 
 export function InspectionProgress({
   activeStep,
-  url,
+  providerDomain,
 }: InspectionProgressProps) {
-  const hostname = new URL(url).hostname;
   const currentLabel = inspectionSteps[activeStep] ?? "Inspection complete";
 
   return (
@@ -30,7 +29,7 @@ export function InspectionProgress({
         id="inspection-progress-title"
         className="text-secondary font-mono text-xs"
       >
-        Inspecting {hostname}
+        Inspecting {providerDomain}
       </p>
       <span className="sr-only">{currentLabel}</span>
       <ol className="mt-7 space-y-1">
@@ -55,7 +54,7 @@ export function InspectionProgress({
                   aria-hidden
                   size={13}
                   strokeWidth={1.5}
-                  className="text-secondary animate-spin"
+                  className="text-secondary motion-safe:animate-spin"
                 />
               ) : (
                 <Circle

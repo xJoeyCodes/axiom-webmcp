@@ -9,7 +9,8 @@ const indexedDateFormatter = new Intl.DateTimeFormat("en", {
   timeZoneName: "short",
 });
 
-export function formatIndexedDate(value: string): string {
+export function formatIndexedDate(value: string | null | undefined): string {
+  if (!value) return "Not indexed yet";
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "Unknown"

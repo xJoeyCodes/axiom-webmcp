@@ -1,0 +1,30 @@
+{
+  "name": "@axiom/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/server.js",
+    "index:rebuild": "tsx src/scripts/rebuild-index.ts",
+    "eval:discovery": "tsx src/scripts/evaluate-discovery.ts"
+  },
+  "dependencies": {
+    "@axiom/contracts": "0.1.0",
+    "@axiom/core": "0.1.0",
+    "@axiom/db": "0.1.0",
+    "@axiom/discovery": "0.1.0",
+    "@axiom/ingestion": "0.1.0",
+    "@axiom/registry": "0.1.0",
+    "@fastify/cors": "^11.2.0",
+    "dotenv": "^17.3.1",
+    "fastify": "^5.7.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
+}

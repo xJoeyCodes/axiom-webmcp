@@ -1,14 +1,20 @@
 import type {
+  AxiomManifest,
   DiscoveryResult,
-  InspectionResult,
+  ManifestInspectionResult,
+  ManifestPublishResult,
   Provider,
-  PublishInput,
-  PublishResult,
 } from "@/lib/types/axiom";
 
 export interface AxiomClient {
   discover(query: string): Promise<DiscoveryResult[]>;
   getProvider(slug: string): Promise<Provider | null>;
-  inspect(url: string): Promise<InspectionResult>;
-  publish(input: PublishInput): Promise<PublishResult>;
 }
+
+export interface AxiomPublishingClient {
+  inspect(manifest: AxiomManifest): Promise<ManifestInspectionResult>;
+  publish(manifest: AxiomManifest): Promise<ManifestPublishResult>;
+}
+
+export interface FrontendAxiomClient
+  extends AxiomClient, AxiomPublishingClient {}

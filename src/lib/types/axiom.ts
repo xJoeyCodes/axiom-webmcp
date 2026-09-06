@@ -1,3 +1,5 @@
+import type { AxiomManifest as TransportAxiomManifest } from "@axiom-webmcp/sdk";
+
 export type VerificationStatus = "verified" | "pending" | "unverified";
 
 export type JsonSchemaType =
@@ -43,6 +45,7 @@ export interface CapabilityMetadata {
   tags: string[];
   transport: "webmcp";
   destructive: boolean;
+  sideEffecting?: boolean;
   requiresConfirmation: boolean;
 }
 
@@ -56,9 +59,9 @@ export interface Capability {
 }
 
 export interface ProviderMetadata {
-  industry: string;
+  industry?: string;
   location?: string;
-  documentationUrl: string;
+  documentationUrl?: string;
 }
 
 export interface Provider {
@@ -66,10 +69,11 @@ export interface Provider {
   slug: string;
   name: string;
   domain: string;
+  canonicalUrl?: string;
   description: string;
   verified: boolean;
   verificationStatus: VerificationStatus;
-  lastIndexed: string;
+  lastIndexed: string | null;
   capabilities: Capability[];
   metadata: ProviderMetadata;
 }
@@ -86,6 +90,52 @@ export interface DiscoveryResult {
   matches: CapabilityMatch[];
 }
 
+export type AxiomManifest = TransportAxiomManifest;
+export type PublicationAction = "create" | "update" | "unchanged" | "remove";
+
+export interface PublicationSummary {
+  total: number;
+  create: number;
+  update: number;
+  unchanged: number;
+  remove: number;
+}
+
+export interface PublicationWarning {
+  code: string;
+  capability: string;
+  message: string;
+}
+
+export interface InspectedCapability {
+  capability: Capability;
+  action: PublicationAction;
+}
+
+export interface ManifestInspectionResult {
+  manifest: AxiomManifest;
+  providerAction: Exclude<PublicationAction, "remove">;
+  providerSlug: string | null;
+  summary: PublicationSummary;
+  capabilities: InspectedCapability[];
+  warnings: PublicationWarning[];
+}
+
+export interface PublicationIndexingSummary {
+  ready: number;
+  failed: number;
+  unchanged: number;
+  pending: number;
+}
+
+export interface ManifestPublishResult {
+  provider: Provider;
+  summary: PublicationSummary;
+  indexing: PublicationIndexingSummary;
+  warnings: PublicationWarning[];
+}
+
+// Retained for the explicit offline mock client used by isolated frontend work.
 export type InspectionStatus = "detected" | "not_found" | "invalid";
 
 export interface InspectionResult {
