@@ -41,9 +41,11 @@ export function AtlasDiningDemo() {
   useEffect(() => {
     const modelContext = getWebMcpModelContext(document);
     if (!modelContext) {
-      setWebMcpStatus(
-        "WebMCP is unavailable. Enable the experimental browser feature to register tools.",
-      );
+      queueMicrotask(() => {
+        setWebMcpStatus(
+          "WebMCP is unavailable. Enable the experimental browser feature to register tools.",
+        );
+      });
       return;
     }
 

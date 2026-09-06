@@ -40,7 +40,7 @@ export function PublishReview({
             <span className="font-mono">
               {inspection.manifest.provider.domain}
             </span>{" "}
-            contains {inspection.capabilities.length} validated WebMCP{" "}
+            exposes {inspection.capabilities.length} validated WebMCP{" "}
             {inspection.capabilities.length === 1
               ? "capability"
               : "capabilities"}
@@ -48,7 +48,7 @@ export function PublishReview({
           </p>
         </div>
         <Button variant="quiet" onClick={onReset} disabled={publishing}>
-          Edit manifest
+          Start over
         </Button>
       </div>
 
@@ -104,7 +104,7 @@ export function PublishReview({
       <div className="border-border mt-10 flex flex-col gap-5 border-t pt-7 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted max-w-xl text-xs leading-5">
           {hasChanges
-            ? "Axiom will persist this plan and index semantic content through the configured backend."
+            ? "Axiom will persist this plan and index its capability meaning for agent discovery."
             : `Everything is up to date. ${summary.unchanged} capabilities are unchanged.`}
         </p>
         <Button

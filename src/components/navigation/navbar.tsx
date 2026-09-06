@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils/cn";
 
 const navigation = [
   { href: "/discover", label: "Discover" },
+  { href: "/publish", label: "Add website" },
   { href: "/developers", label: "Developers" },
   { href: "/docs", label: "Docs" },
 ] as const;
@@ -63,11 +64,10 @@ export function Navbar() {
 
         <nav
           aria-label="Primary navigation"
-          className="hidden items-center gap-8 sm:flex"
+          className="hidden items-center gap-7 sm:flex"
         >
           {navigation.map((item) => {
             const active = isActivePath(pathname, item.href);
-
             return (
               <Link
                 key={item.href}

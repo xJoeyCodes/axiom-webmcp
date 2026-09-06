@@ -4,15 +4,15 @@ import { Reveal } from "@/components/motion/reveal";
 const principles = [
   {
     number: "01",
-    title: "WebMCP makes websites actionable.",
+    title: "Expose",
     description:
-      "Websites expose structured capabilities that agents can invoke directly.",
+      "Your website publishes actions through WebMCP. Axiom inspects those contracts and normalizes them into capabilities.",
   },
   {
     number: "02",
-    title: "Axiom makes those capabilities discoverable.",
+    title: "Discover",
     description:
-      "Agents find websites based on what those websites can do—not only what they contain.",
+      "Agents query Axiom by intent and find websites capable of performing the actions they need.",
   },
 ] as const;
 
@@ -27,13 +27,13 @@ export function ProductExplanation() {
           <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
             <div>
               <p className="text-muted font-mono text-[10px] tracking-[0.15em] uppercase">
-                The missing layer
+                Two sides. One index.
               </p>
               <h2
                 id="product-explanation-title"
                 className="text-foreground mt-5 max-w-sm text-3xl leading-tight font-normal tracking-[-0.04em] sm:text-4xl"
               >
-                Interaction starts after discovery.
+                Index what your website can do.
               </h2>
             </div>
 
