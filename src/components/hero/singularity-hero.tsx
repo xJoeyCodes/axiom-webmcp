@@ -1,61 +1,129 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useSyncExternalStore } from "react";
+import {
+  Component,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
-const sceneQuery =
-  "(min-width: 640px) and (prefers-reduced-motion: no-preference)";
+import {
+  selectSingularityQuality,
+  type SingularityQuality,
+} from "./singularity-particles";
+import styles from "./singularity.module.css";
 
 const SingularityScene = dynamic(
-  () =>
-    import("@/components/hero/singularity-scene").then(
-      (module) => module.SingularityScene,
-    ),
+  () => import("./singularity-scene").then((module) => module.SingularityScene),
   { ssr: false },
 );
 
-function subscribeToScenePreference(onStoreChange: () => void) {
-  const mediaQuery = window.matchMedia(sceneQuery);
-  mediaQuery.addEventListener("change", onStoreChange);
-  return () => mediaQuery.removeEventListener("change", onStoreChange);
+function subscribePreferences(update: () => void) {
+  const queries = [
+    "(min-width: 640px)",
+    "(min-width: 1200px)",
+    "(prefers-reduced-motion: reduce)",
+  ];
+  const media = queries.map((query) => window.matchMedia(query));
+  media.forEach((query) => query.addEventListener("change", update));
+  return () =>
+    media.forEach((query) => query.removeEventListener("change", update));
+}
+function getPreferences() {
+  const quality = selectSingularityQuality(
+    window.innerWidth,
+    navigator.hardwareConcurrency || 4,
+  );
+  return `${quality}:${window.matchMedia("(prefers-reduced-motion: reduce)").matches}`;
 }
 
-function getScenePreference() {
-  return window.matchMedia(sceneQuery).matches;
-}
-
-function getServerScenePreference() {
-  return false;
+class SceneBoundary extends Component<
+  { children: ReactNode; onFailure: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onFailure();
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
 
 export function SingularityHero() {
-  const renderWebGl = useSyncExternalStore(
-    subscribeToScenePreference,
-    getScenePreference,
-    getServerScenePreference,
+  const container = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const preferences = useSyncExternalStore(
+    subscribePreferences,
+    getPreferences,
+    () => "low:true",
   );
+  const [quality, reduced] = preferences.split(":");
+  const onReady = useCallback(() => setReady(true), []);
+  const onFailure = useCallback(() => {
+    setFailed(true);
+    setReady(false);
+  }, []);
+
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    let intersects = false;
+    function updateVisibility() {
+      const active = intersects && document.visibilityState === "visible";
+      setVisible(active);
+      if (active) setMounted(true);
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        intersects = entry.isIntersecting;
+        updateVisibility();
+      },
+      { threshold: 0.01 },
+    );
+    observer.observe(element);
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", updateVisibility);
+    };
+  }, []);
 
   return (
     <div
+      ref={container}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+      className={`${styles.root} ${ready ? styles.ready : ""}`}
     >
-      <div className="absolute top-[46%] left-1/2 aspect-square w-[min(112vw,960px)] -translate-x-1/2 -translate-y-1/2 opacity-70 sm:top-[44%] sm:w-[min(88vw,1040px)]">
-        <div className="absolute inset-[10%] animate-[spin_52s_linear_infinite] rounded-full border border-white/[0.035]" />
-        <div className="absolute inset-[21%] rotate-[18deg] [transform:rotate(18deg)_scaleY(.38)] animate-[spin_68s_linear_infinite_reverse] rounded-[50%] border border-white/[0.055]" />
-        <div className="absolute inset-[30%] rounded-full border border-white/[0.07]" />
-        <div className="absolute inset-[39%] rounded-full bg-[radial-gradient(circle_at_42%_38%,rgba(255,255,255,0.035),rgba(0,0,0,0.96)_58%)] shadow-[0_0_80px_rgba(255,255,255,0.025)]" />
-        <div className="absolute top-1/2 right-[8%] left-[8%] h-px bg-linear-to-r from-transparent via-white/[0.09] to-transparent" />
+      <div className={styles.fallback}>
+        <div className={styles.stars} />
+        <div className={styles.disk} />
+        <div className={styles.void} />
       </div>
-
-      {renderWebGl ? (
-        <div className="absolute inset-0 opacity-80">
-          <SingularityScene />
+      {mounted && !failed ? (
+        <div className={styles.canvas}>
+          <SceneBoundary onFailure={onFailure}>
+            <SingularityScene
+              quality={quality as SingularityQuality}
+              active={visible}
+              reducedMotion={reduced === "true"}
+              onReady={onReady}
+              onFailure={onFailure}
+            />
+          </SceneBoundary>
         </div>
       ) : null}
-
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(9,10,12,0.12)_38%,#090a0c_76%)]" />
-      <div className="to-background absolute inset-x-0 bottom-0 h-52 bg-linear-to-b from-transparent" />
+      <div className={styles.veil} />
     </div>
   );
 }
