@@ -1,6 +1,13 @@
 import { Check, Circle, LoaderCircle } from "lucide-react";
 
-export const inspectionSteps = [
+export const websiteInspectionSteps = [
+  "Opening website",
+  "Reading WebMCP actions",
+  "Validating capabilities",
+  "Comparing registry",
+] as const;
+
+export const manifestInspectionSteps = [
   "Reading manifest",
   "Validating capabilities",
   "Comparing registry",
@@ -10,20 +17,22 @@ export const inspectionSteps = [
 interface InspectionProgressProps {
   activeStep: number;
   providerDomain: string;
+  steps: readonly string[];
 }
 
 export function InspectionProgress({
   activeStep,
   providerDomain,
+  steps,
 }: InspectionProgressProps) {
-  const currentLabel = inspectionSteps[activeStep] ?? "Inspection complete";
+  const currentLabel = steps[activeStep] ?? "Inspection complete";
 
   return (
     <section
       className="border-border mt-12 max-w-4xl border-t pt-8"
       aria-labelledby="inspection-progress-title"
       aria-live="polite"
-      aria-busy={activeStep < inspectionSteps.length}
+      aria-busy={activeStep < steps.length}
     >
       <p
         id="inspection-progress-title"
@@ -33,10 +42,9 @@ export function InspectionProgress({
       </p>
       <span className="sr-only">{currentLabel}</span>
       <ol className="mt-7 space-y-1">
-        {inspectionSteps.map((step, index) => {
+        {steps.map((step, index) => {
           const complete = index < activeStep;
           const active = index === activeStep;
-
           return (
             <li
               key={step}

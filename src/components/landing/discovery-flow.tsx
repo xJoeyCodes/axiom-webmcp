@@ -5,27 +5,27 @@ import { Reveal } from "@/components/motion/reveal";
 
 const flowNodes = [
   {
-    label: "User intent",
-    value: '"Book dinner"',
-    detail: "Natural language",
-    emphasized: false,
-  },
-  {
-    label: "Axiom",
-    value: "Capability match",
-    detail: "Discovery index",
-    emphasized: true,
-  },
-  {
-    label: "Provider",
-    value: "restaurant.example",
-    detail: "WebMCP enabled",
+    label: "Website",
+    value: "provider.example",
+    detail: "Developer submits URL",
     emphasized: false,
   },
   {
     label: "WebMCP",
-    value: "make_reservation()",
-    detail: "Invokable action",
+    value: "exposed actions",
+    detail: "Inspect tool contracts",
+    emphasized: false,
+  },
+  {
+    label: "Axiom",
+    value: "capability index",
+    detail: "Normalize + index",
+    emphasized: true,
+  },
+  {
+    label: "Agent",
+    value: 'intent: "Reserve dinner"',
+    detail: "Discover matching site",
     emphasized: false,
   },
 ] as const;
@@ -40,13 +40,13 @@ export function DiscoveryFlow() {
         <Reveal>
           <div className="max-w-2xl">
             <p className="text-muted font-mono text-[10px] tracking-[0.15em] uppercase">
-              Intent to action
+              Website to agent
             </p>
             <h2
               id="discovery-flow-title"
               className="text-foreground mt-5 text-3xl font-normal tracking-[-0.04em] sm:text-4xl"
             >
-              A path through the actionable web.
+              From exposed action to discovered capability.
             </h2>
           </div>
 

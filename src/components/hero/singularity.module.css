@@ -1,0 +1,127 @@
+.root {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 800ms ease;
+}
+
+.ready .canvas {
+  opacity: 0.88;
+}
+
+.fallback {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  width: min(110vw, 1280px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  transition: opacity 800ms ease;
+}
+
+.ready .fallback {
+  opacity: 0.14;
+}
+
+.disk {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  transform: rotate(-8deg) scaleY(0.32);
+  background: radial-gradient(
+    ellipse,
+    transparent 16%,
+    #e1e1e130 19%,
+    #eeeeee15 23%,
+    #cccccc08 35%,
+    transparent 67%
+  );
+  box-shadow: 0 0 45px #ffffff08;
+}
+
+.disk::before,
+.disk::after {
+  content: "";
+  position: absolute;
+  inset: 13%;
+  border: 1px solid #ffffff18;
+  border-radius: 50%;
+}
+.disk::after {
+  inset: 26%;
+  border-color: #ffffff28;
+}
+
+.void {
+  position: absolute;
+  inset: 42%;
+  border-radius: 50%;
+  background: #030405;
+  box-shadow:
+    0 0 2px #ffffff35,
+    0 0 26px #ffffff0a;
+}
+
+.stars {
+  position: absolute;
+  inset: 0;
+  opacity: 0.3;
+  background:
+    radial-gradient(circle at 15% 30%, #ccc 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 76% 22%, #aaa 0 0.6px, transparent 1.2px),
+    radial-gradient(circle at 87% 52%, #aaa 0 0.6px, transparent 1.3px),
+    radial-gradient(circle at 23% 68%, #ccc 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 68% 75%, #aaa 0 0.6px, transparent 1.2px);
+}
+
+.veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 31% 34% at 50% 43%, #090a0c80, transparent 100%),
+    radial-gradient(
+      ellipse at 50% 47%,
+      transparent 27%,
+      #090a0c35 62%,
+      #090a0c 93%
+    ),
+    linear-gradient(
+      to bottom,
+      #090a0c55,
+      transparent 20%,
+      transparent 75%,
+      #090a0c
+    );
+}
+
+@media (max-width: 639px) {
+  .ready .canvas {
+    opacity: 0.62;
+  }
+  .fallback {
+    width: 170vw;
+  }
+  .veil {
+    background: radial-gradient(
+      ellipse at center,
+      #090a0c25 10%,
+      #090a0c60 64%,
+      #090a0c 94%
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas,
+  .fallback {
+    transition: none;
+  }
+}

@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
 import { PageContainer } from "@/components/layout/page-container";
@@ -33,8 +33,8 @@ export function OpenSourceCta() {
                 Built in the open.
               </h2>
               <p className="text-secondary mt-5 max-w-xl text-sm leading-7 sm:text-base">
-                Axiom is designed as open, portable discovery infrastructure for
-                every agent and every WebMCP-enabled website.
+                Add your WebMCP website to an open, portable capability index
+                designed for every agent.
               </p>
               <ul className="text-muted mt-8 flex flex-wrap gap-x-6 gap-y-3 font-mono text-[10px] tracking-[0.08em] uppercase">
                 {traits.map((trait) => (
@@ -50,23 +50,23 @@ export function OpenSourceCta() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <Link
+                href="/publish"
+                className={buttonStyles({ className: "h-11 px-5" })}
+              >
+                Add your website <ArrowRight aria-hidden size={14} />
+              </Link>
               <a
                 href={siteConfig.githubUrl}
                 target="_blank"
                 rel="noreferrer"
-                className={buttonStyles({ className: "h-11 px-5" })}
-              >
-                View on GitHub <ArrowUpRight aria-hidden size={14} />
-              </a>
-              <Link
-                href="/developers"
                 className={buttonStyles({
                   variant: "secondary",
                   className: "h-11 px-5",
                 })}
               >
-                For developers
-              </Link>
+                View on GitHub <ArrowUpRight aria-hidden size={14} />
+              </a>
             </div>
           </div>
         </Reveal>

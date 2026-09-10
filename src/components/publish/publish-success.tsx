@@ -77,7 +77,7 @@ export function PublishSuccess({ onReset, result }: PublishSuccessProps) {
       />
 
       <Button variant="quiet" onClick={onReset} className="mt-7">
-        Publish another manifest
+        Add another website
       </Button>
     </section>
   );
