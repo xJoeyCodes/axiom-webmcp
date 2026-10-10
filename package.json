@@ -14,6 +14,7 @@
     "dev:api": "npm run dev --workspace @axiom/api",
     "build": "npm run build:web",
     "build:web": "npm run build:client && npm run build:sdk && next build",
+    "build:backend-packages": "npm run build --workspace @axiom/core && npm run build --workspace @axiom/contracts && npm run build --workspace @axiom/registry && npm run build --workspace @axiom/ingestion && npm run build --workspace @axiom/discovery && npm run build --workspace @axiom/db",
     "build:packages": "npm run build --workspace @axiom/core && npm run build --workspace @axiom/contracts && npm run build --workspace @axiom/registry && npm run build --workspace @axiom/ingestion && npm run build --workspace @axiom/discovery && npm run build --workspace @axiom/db && npm run build:client && npm run build:sdk && npm run build:cli",
     "build:api": "npm run build:packages && npm run build --workspace @axiom/api",
     "build:all": "npm run build:web && npm run build:api",
