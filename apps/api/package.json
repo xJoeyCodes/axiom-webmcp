@@ -6,8 +6,7 @@
   "main": "./dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "prebuild": "npm run build:backend-packages --prefix ../..",
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build:backend-packages --prefix ../.. && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/server.js",
     "index:rebuild": "tsx src/scripts/rebuild-index.ts",
